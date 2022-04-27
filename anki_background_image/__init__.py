@@ -1,3 +1,5 @@
+import os
+
 import aqt
 import aqt.editor
 import aqt.deckbrowser
@@ -12,20 +14,10 @@ from .anki_tool import get_dialog_instance_or_none
 from .tools import append_to_method, replace_method
 
 
-def get_current_image_path() -> str:
-    if aqt.theme.theme_manager.night_mode:
-        return ""
-    else:
-        return ""
-
-
-########################################################################################
-
-
-def set_main_window_background_image(image_path):
+def set_main_window_background_image():
     aqt.mw.setStyleSheet(rf"""
         QMainWindow {{
-            background-image: url("{image_path}"); 
+            background-image: url("{config.current_image_path}"); 
             background-position: center;
         }}
         QMenuBar {{
@@ -37,31 +29,31 @@ def set_main_window_background_image(image_path):
     """)
 
 
-def set_dialog_background_image(dialog, image_path):
+def set_dialog_background_image(dialog):
     class_name = dialog.__class__.__name__
     dialog.setStyleSheet(rf"""
         {class_name} {{
-            background-image: url("{image_path}"); 
+            background-image: url("{config.current_image_path}"); 
             background-position: center;
         }}
     """)
 
 
-def set_previewer_background_image(previewer, image_path):
+def set_previewer_background_image(previewer):
     previewer.setStyleSheet(rf"""
         QDialog {{
-            background-image: url("{image_path}"); 
+            background-image: url("{config.current_image_path}"); 
             background-position: center;
         }}
     """)
 
 
-def set_background_images_now(image_path):
-    set_main_window_background_image(image_path)
+def set_background_images_now():
+    set_main_window_background_image()
 
-    for dialog_name in ["AddCards", "EditCurrent"]:
+    for dialog_name in config.altered_dialogs:
         if dialog := get_dialog_instance_or_none(dialog_name):
-            set_dialog_background_image(dialog, image_path)
+            set_dialog_background_image(dialog)
 
 
 ############################################################################## web views
@@ -69,7 +61,7 @@ def set_background_images_now(image_path):
 
 @replace_method(aqt.editor.EditorWebView, "__init__")
 def editor_webview_init(self, parent, editor):
-    if editor.parentWindow.__class__.__name__ in ["AddCards", "EditCurrent"]:
+    if editor.parentWindow.__class__.__name__ in config.altered_dialogs:
         self._transparent = True
     editor_webview_init.original_method(self, parent, editor)
 
@@ -106,7 +98,7 @@ def webview_get_window_bg_color(self, *args, **kwargs):
 
 @append_to_method(aqt.browser.previewer.Previewer, "__init__")
 def previewer_init(self, *_args, **_kwargs):
-    set_previewer_background_image(self, get_current_image_path())
+    set_previewer_background_image(self)
 
 
 @append_to_method(aqt.browser.previewer.Previewer, "show")
@@ -133,8 +125,8 @@ def add_cards_init(self, *_args, **_kwargs):
 def editor_init(self, *_args, **_kwargs):
     dialog = self.parentWindow
 
-    if dialog.__class__.__name__ in ["AddCards", "EditCurrent"]:
-        set_dialog_background_image(dialog, get_current_image_path())
+    if dialog.__class__.__name__ in config.altered_dialogs:
+        set_dialog_background_image(dialog)
 
         self.widget.setStyleSheet(r"""
             EditorWebView { background: transparent }
@@ -153,7 +145,7 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
         </style>"""
 
     if isinstance(context, aqt.editor.Editor):
-        if context.parentWindow.__class__.__name__ in ["AddCards", "EditCurrent"]:
+        if context.parentWindow.__class__.__name__ in config.altered_dialogs:
             web_content.head += """<style>
                 body {background: none !important }
                 .sticky-container { background: none !important }
@@ -163,11 +155,37 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
 ########################################################################################
 
 
+# noinspection PyAttributeOutsideInit
+class Config:
+    def reload(self):
+        self.data = aqt.mw.addonManager.getConfig(__name__)
+        for path in [self.data["dark_mode_image_path"], self.data["light_mode_image_path"]]:
+            if not os.path.exists(path):
+                raise Exception(f"Image does not exist: '{path}'")
+            if '"' in path:
+                raise Exception(f"Image path must not contain quotation marks: '{path}'")
+
+    @property
+    def current_image_path(self):
+        dark = aqt.theme.theme_manager.night_mode
+        return self.data["dark_mode_image_path" if dark else "light_mode_image_path"]
+
+    @property
+    def altered_dialogs(self):
+        return ["AddCards", "EditCurrent"]
+
+config = Config()
+config.reload()
+
+
+########################################################################################
+
+
 def theme_did_change():
-    set_background_images_now(get_current_image_path())
+    set_background_images_now()
 
 
 gui_hooks.theme_did_change.append(theme_did_change)
 gui_hooks.webview_will_set_content.append(webview_will_set_content)
 
-set_background_images_now(get_current_image_path())
+set_background_images_now()
