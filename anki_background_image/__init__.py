@@ -1,5 +1,6 @@
 import aqt
 import aqt.editor
+import aqt.deckbrowser
 import aqt.browser.previewer
 import aqt.webview
 from aqt import gui_hooks
@@ -132,6 +133,17 @@ def editor_init(self, *_args, **_kwargs):
         """)
 
 
+########################################################################### deck browser
+
+
+def webview_will_set_content(web_content: aqt.webview.WebContent, context):
+    if isinstance(context, aqt.deckbrowser.DeckBrowser):
+        web_content.head += """<style>
+            .current { background-color: #fff3 !important }
+            .zero-count { color: #0005 !important }
+        </style>"""
+
+
 ########################################################################################
 
 
@@ -140,6 +152,6 @@ def theme_did_change():
 
 
 gui_hooks.theme_did_change.append(theme_did_change)
-
+gui_hooks.webview_will_set_content.append(webview_will_set_content)
 
 set_background_images_now(get_current_image_path())
