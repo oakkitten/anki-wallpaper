@@ -9,6 +9,7 @@ import aqt.webview
 from aqt import gui_hooks
 
 from aqt.qt import Qt, QColor
+from aqt.utils import showWarning
 
 from .anki_tool import get_dialog_instance_or_none
 from .tools import append_to_method, replace_method
@@ -159,11 +160,25 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
 class Config:
     def reload(self):
         self.data = aqt.mw.addonManager.getConfig(__name__)
+
+        errors = []
         for path in [self.data["dark_mode_image_path"], self.data["light_mode_image_path"]]:
             if not os.path.exists(path):
-                raise Exception(f"Image does not exist: '{path}'")
+                errors.append(f"Image does not exist: '{path}'")
             if '"' in path:
-                raise Exception(f"Image path must not contain quotation marks: '{path}'")
+                errors.append(f"Image path must not contain quotation marks: '{path}'")
+
+        if errors:
+            errors_str = '\n'.join(errors)
+            showWarning(
+                title="Background Image",
+                text="There were issues with some of the background images. "
+                     "Expect things to break.\n\n"
+                     f"{errors_str}\n\n"
+                     "You can change images in "
+                     "Tools → Add-ons → Background image → Config.",
+                help=None,  # noqa
+            )
 
     @property
     def current_image_path(self):
