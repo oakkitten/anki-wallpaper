@@ -107,8 +107,7 @@ def previewer_init(self, *_args, **_kwargs):
 @append_to_method(aqt.browser.previewer.Previewer, "show")
 def previewer_show(self, *_args, **_kwargs):
     self._web.setStyleSheet(r"""
-        QWidget { background: transparent }
-        QMenu { background: #f0f0f0 }
+        #_web { background: transparent }
     """)
 
 ############################################################################## add cards
