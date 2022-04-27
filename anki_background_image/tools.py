@@ -5,6 +5,9 @@ def patch_method(obj, method_name, action):
     original_method = getattr(obj, method_name)
 
     def decorator(function):
+        if not hasattr(obj, method_name):
+            raise Exception(f"Object {obj} has no method with the name {method_name}")
+
         if action == "replace":
             @wraps(function)
             def patched_method(*args, **kwargs):

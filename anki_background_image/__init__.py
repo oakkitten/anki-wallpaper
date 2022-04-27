@@ -1,4 +1,5 @@
 import aqt
+import aqt.editor
 import aqt.browser.previewer
 import aqt.webview
 from aqt import gui_hooks
@@ -31,9 +32,10 @@ def set_main_window_background_image(image_path):
     """)
 
 
-def set_edit_current_background_image(edit_current, image_path):
-    edit_current.setStyleSheet(rf"""
-        EditCurrent {{
+def set_dialog_background_image(dialog, image_path):
+    class_name = dialog.__class__.__name__
+    dialog.setStyleSheet(rf"""
+        {class_name} {{
             background-image: url("{image_path}"); 
             background-position: center;
         }}
@@ -52,36 +54,19 @@ def set_previewer_background_image(previewer, image_path):
 def set_background_images_now(image_path):
     set_main_window_background_image(image_path)
 
-    if edit_current := get_dialog_instance_or_none("EditCurrent"):
-        set_edit_current_background_image(edit_current, image_path)
+    for dialog_name in ["AddCards", "EditCurrent"]:
+        if dialog := get_dialog_instance_or_none(dialog_name):
+            set_dialog_background_image(dialog, image_path)
 
 
 ############################################################################## web views
 
 
-def is_transparent_webview(webview: aqt.webview.AnkiWebView) -> bool:
-    if webview.title in [
-        "top toolbar",
-        "main webview",
-        "bottom toolbar",
-        "previewer",
-    ]:
-        return True
-
-    if webview.title == "editor":
-        if parent := webview.parent():
-            if parent.__class__.__name__ == "EditCurrent":
-                return True
-
-    return False
-
-
-@append_to_method(aqt.webview.AnkiWebView, "__init__")
-def webview_init(self, *_args, **_kwargs):
-    if is_transparent_webview(self):
-        self.setAttribute(Qt.WA_TranslucentBackground)  # noqa
-        self.setAutoFillBackground(True)
-        self.setWindowFlags(Qt.FramelessWindowHint)  # noqa
+@replace_method(aqt.editor.EditorWebView, "__init__")
+def editor_webview_init(self, parent, editor):
+    if editor.parentWindow.__class__.__name__ in ["AddCards", "EditCurrent"]:
+        self._transparent = True
+    editor_webview_init.original_method(self, parent, editor)
 
 
 class FakeTransparentColor(QColor):
@@ -93,8 +78,15 @@ fake_transparent_color = FakeTransparentColor()
 
 @replace_method(aqt.webview.AnkiWebView, "get_window_bg_color")
 def webview_get_window_bg_color(self, *args, **kwargs):
-    if is_transparent_webview(self):
-        self.page().setBackgroundColor(Qt.transparent)  # noqa
+    transparent = getattr(self, "_transparent", False) or self.title in [
+        "top toolbar",
+        "main webview",
+        "bottom toolbar",
+        "previewer",
+    ]
+
+    if transparent:
+        self.page().setBackgroundColor(Qt.GlobalColor.transparent)
         return fake_transparent_color
     else:
         return webview_get_window_bg_color.original_method(self, *args, **kwargs)
@@ -115,17 +107,30 @@ def previewer_show(self, *_args, **_kwargs):
         QMenu { background: #f0f0f0 }
     """)
 
+############################################################################## add cards
 
-########################################################################### edit current
 
-
-@append_to_method(aqt.editcurrent.EditCurrent, "__init__")
-def edit_current_init(self, *_args, **_kwargs):
-    set_edit_current_background_image(self, get_current_image_path())
-
-    self.editor.widget.setStyleSheet(r"""
-        EditorWebView { background: transparent }
+@append_to_method(aqt.addcards.AddCards, "__init__")
+def add_cards_init(self, *_args, **_kwargs):
+    self.form.fieldsArea.setStyleSheet(r"""
+       #fieldsArea { background: transparent }
     """)
+
+
+############################################################# add cards and edit current
+
+
+@append_to_method(aqt.editor.Editor, "setupWeb")
+def editor_init(self, *_args, **_kwargs):
+    dialog = self.parentWindow
+
+    if dialog.__class__.__name__ in ["AddCards", "EditCurrent"]:
+        set_dialog_background_image(dialog, get_current_image_path())
+
+        self.widget.setStyleSheet(r"""
+            EditorWebView { background: transparent }
+        """)
+
 
 ########################################################################################
 
