@@ -70,11 +70,15 @@ def editor_webview_init(self, parent, editor):
     editor_webview_init.original_method(self, parent, editor)
 
 
-class FakeTransparentColor(QColor):
+class NamedTransparentColor(QColor):
+    def __init__(self):
+        super().__init__()
+        self.setAlpha(0)
+
     def name(self):
         return "transparent"
 
-fake_transparent_color = FakeTransparentColor()
+transparent_color = NamedTransparentColor()
 
 
 @replace_method(aqt.webview.AnkiWebView, "get_window_bg_color")
@@ -88,7 +92,7 @@ def webview_get_window_bg_color(self, *args, **kwargs):
 
     if transparent:
         self.page().setBackgroundColor(Qt.GlobalColor.transparent)
-        return fake_transparent_color
+        return transparent_color
     else:
         return webview_get_window_bg_color.original_method(self, *args, **kwargs)
 
