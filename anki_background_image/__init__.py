@@ -1,18 +1,20 @@
 import os
 
 import aqt
-import aqt.editor
-import aqt.deckbrowser
 import aqt.browser.previewer
+import aqt.deckbrowser
+import aqt.editor
 import aqt.theme
 import aqt.webview
 from aqt import gui_hooks
-
 from aqt.qt import Qt, QColor
 from aqt.utils import showWarning
 
 from .anki_tool import get_dialog_instance_or_none
 from .tools import append_to_method, replace_method
+
+
+anki_version = tuple(int(segment) for segment in aqt.appVersion.split("."))
 
 
 def set_main_window_background_image():
@@ -137,8 +139,13 @@ def editor_init(self, *_args, **_kwargs):
 ########################################################################### deck browser
 
 
+# * `current`: the class for the currently selected deck; solid color by default
+# * `zero-count`:  the class for zeros in the due cards table; barely visible by default
+# * `sticky-container`: the class for a div behind the button bars and the tag bar
+#    in the Editor. in night mode, these seem to have background color
+# * `container-fluid`: the same but in Anki 2.1.49.
 def webview_will_set_content(web_content: aqt.webview.WebContent, context):
-    if isinstance(context, aqt.deckbrowser.DeckBrowser):
+    if isinstance(context, aqt.deckbrowser.DeckBrowser):  # noqa
         web_content.head += """<style>
             .current { background-color: #fff3 !important }
             .zero-count { color: #0005 !important }
@@ -149,7 +156,7 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
         if context.parentWindow.__class__.__name__ in config.altered_dialogs:
             web_content.head += """<style>
                 body {background: none !important }
-                .sticky-container { background: none !important }
+                .sticky-container, .container-fluid { background: none !important }
             </style>"""
 
 
@@ -200,7 +207,9 @@ def theme_did_change():
     set_background_images_now()
 
 
-gui_hooks.theme_did_change.append(theme_did_change)
+if anki_version >= (2, 1, 50):
+    gui_hooks.theme_did_change.append(theme_did_change)
+
 gui_hooks.webview_will_set_content.append(webview_will_set_content)
 
 set_background_images_now()
