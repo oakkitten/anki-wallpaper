@@ -2,6 +2,7 @@ import aqt
 import aqt.editor
 import aqt.deckbrowser
 import aqt.browser.previewer
+import aqt.theme
 import aqt.webview
 from aqt import gui_hooks
 
@@ -12,7 +13,10 @@ from .tools import append_to_method, replace_method
 
 
 def get_current_image_path() -> str:
-    return ""
+    if aqt.theme.theme_manager.night_mode:
+        return ""
+    else:
+        return ""
 
 
 ########################################################################################
@@ -145,7 +149,15 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
         web_content.head += """<style>
             .current { background-color: #fff3 !important }
             .zero-count { color: #0005 !important }
+            .night-mode .zero-count { color: #fff5 !important }
         </style>"""
+
+    if isinstance(context, aqt.editor.Editor):
+        if context.parentWindow.__class__.__name__ in ["AddCards", "EditCurrent"]:
+            web_content.head += """<style>
+                body {background: none !important }
+                .sticky-container { background: none !important }
+            </style>"""
 
 
 ########################################################################################
