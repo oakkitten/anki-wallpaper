@@ -79,17 +79,23 @@ def is_transparent_webview(webview: aqt.webview.AnkiWebView) -> bool:
 @append_to_method(aqt.webview.AnkiWebView, "__init__")
 def webview_init(self, *_args, **_kwargs):
     if is_transparent_webview(self):
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_TranslucentBackground)  # noqa
         self.setAutoFillBackground(True)
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.FramelessWindowHint)  # noqa
+
+
+class FakeTransparentColor(QColor):
+    def name(self):
+        return "transparent"
+
+fake_transparent_color = FakeTransparentColor()
 
 
 @replace_method(aqt.webview.AnkiWebView, "get_window_bg_color")
 def webview_get_window_bg_color(self, *args, **kwargs):
     if is_transparent_webview(self):
-        self.page().setBackgroundColor(Qt.transparent)
-        return type("FakeColor", (QColor,), {'name': lambda self: 'transparent'})()
-        #return Qt.transparent
+        self.page().setBackgroundColor(Qt.transparent)  # noqa
+        return fake_transparent_color
     else:
         return webview_get_window_bg_color.original_method(self, *args, **kwargs)
 
