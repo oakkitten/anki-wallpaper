@@ -23,12 +23,9 @@ def set_main_window_background_image():
             background-image: url("{config.current_image_path}"); 
             background-position: center;
         }}
-        QMenuBar {{
-            background: transparent;
-        }}
-        #centralwidget {{ 
-            background: transparent; 
-        }}
+        
+        QMenuBar {{ background: transparent; }}
+        #centralwidget {{  background: transparent; }}
     """)
 
 
@@ -51,6 +48,9 @@ def set_previewer_background_image(previewer):
     """)
 
 
+# todo also change background images for the previewer?
+#   previewer is not registered with the dialog manager
+#   so we can't just grab the instance as easily as with the other dialogs
 def set_background_images_now():
     set_main_window_background_image()
 
@@ -62,22 +62,24 @@ def set_background_images_now():
 ############################################################################## web views
 
 
+# Anki misuses `QColor` in python, and also in css, by calling its `name()`.
+# The problem is, the return value of `name()` does not contain the alpha.
+class MonstrousTransparentColor(QColor):
+    def __init__(self):
+        super().__init__()
+        self.setAlpha(0)
+
+    def name(self, *args, **kwargs):
+        return "transparent"
+
+monstrous_transparent_color = MonstrousTransparentColor()
+
+
 @replace_method(aqt.editor.EditorWebView, "__init__")
 def editor_webview_init(self, parent, editor):
     if editor.parentWindow.__class__.__name__ in config.altered_dialogs:
         self._transparent = True
     editor_webview_init.original_method(self, parent, editor)
-
-
-class NamedTransparentColor(QColor):
-    def __init__(self):
-        super().__init__()
-        self.setAlpha(0)
-
-    def name(self):
-        return "transparent"
-
-transparent_color = NamedTransparentColor()
 
 
 @replace_method(aqt.webview.AnkiWebView, "get_window_bg_color")
@@ -91,7 +93,7 @@ def webview_get_window_bg_color(self, *args, **kwargs):
 
     if transparent:
         self.page().setBackgroundColor(Qt.GlobalColor.transparent)
-        return transparent_color
+        return monstrous_transparent_color
     else:
         return webview_get_window_bg_color.original_method(self, *args, **kwargs)
 
@@ -110,7 +112,7 @@ def previewer_show(self, *_args, **_kwargs):
         #_web { background: transparent }
     """)
 
-############################################################################## add cards
+############################################################# add cards and edit current
 
 
 @append_to_method(aqt.addcards.AddCards, "__init__")
@@ -118,9 +120,6 @@ def add_cards_init(self, *_args, **_kwargs):
     self.form.fieldsArea.setStyleSheet(r"""
        #fieldsArea { background: transparent }
     """)
-
-
-############################################################# add cards and edit current
 
 
 @append_to_method(aqt.editor.Editor, "setupWeb")
@@ -135,7 +134,7 @@ def editor_init(self, *_args, **_kwargs):
         """)
 
 
-########################################################################### deck browser
+############################################################# web view css manipulations
 
 
 # * `current`: the class for the currently selected deck; solid color by default
@@ -159,7 +158,7 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
             </style>"""
 
 
-########################################################################################
+########################################################################## configuration
 
 
 # noinspection PyAttributeOutsideInit
@@ -193,7 +192,7 @@ class Config:
 
     @property
     def altered_dialogs(self):
-        return ["AddCards", "EditCurrent"]
+        return ["AddCards", "EditCurrent", "Edit"]
 
 config = Config()
 config.reload()
@@ -210,5 +209,6 @@ if anki_version >= (2, 1, 50):
     gui_hooks.theme_did_change.append(theme_did_change)
 
 gui_hooks.webview_will_set_content.append(webview_will_set_content)
+
 
 set_background_images_now()

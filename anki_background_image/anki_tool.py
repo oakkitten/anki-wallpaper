@@ -9,4 +9,7 @@ def get_dialog_class_or_none(name):
 
 
 def get_dialog_instance_or_none(name):
-    return aqt.dialogs._dialogs[name][1]
+    try:
+        return aqt.dialogs._dialogs[name][1]
+    except KeyError:
+        return None
