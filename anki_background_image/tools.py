@@ -31,3 +31,8 @@ def patch_method(obj, method_name, action):
 
 append_to_method = partial(patch_method, action="append")
 replace_method = partial(patch_method, action="replace")
+
+
+def exception_to_string(exception):
+    exception_class = exception.__class__.__name__
+    return f"{exception_class}: {exception}"

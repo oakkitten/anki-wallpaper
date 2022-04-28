@@ -1,4 +1,7 @@
 import os
+import random
+import re
+from dataclasses import dataclass
 
 import aqt
 import aqt.browser.previewer
@@ -11,7 +14,7 @@ from aqt.qt import Qt, QColor
 from aqt.utils import showWarning
 
 from .anki_tool import get_dialog_instance_or_none
-from .tools import append_to_method, replace_method
+from .tools import append_to_method, replace_method, exception_to_string
 
 
 anki_version = tuple(int(segment) for segment in aqt.appVersion.split("."))
@@ -20,8 +23,8 @@ anki_version = tuple(int(segment) for segment in aqt.appVersion.split("."))
 def set_main_window_background_image():
     aqt.mw.setStyleSheet(rf"""
         QMainWindow {{
-            background-image: url("{config.current_image_path}"); 
-            background-position: center;
+            background-image: url("{config.current_image.file_path}"); 
+            background-position: {config.current_image.position};
         }}
         
         QMenuBar {{ background: transparent; }}
@@ -33,8 +36,8 @@ def set_dialog_background_image(dialog):
     class_name = dialog.__class__.__name__
     dialog.setStyleSheet(rf"""
         {class_name} {{
-            background-image: url("{config.current_image_path}"); 
-            background-position: center;
+            background-image: url("{config.current_image.file_path}"); 
+            background-position: {config.current_image.position};
         }}
     """)
 
@@ -42,8 +45,8 @@ def set_dialog_background_image(dialog):
 def set_previewer_background_image(previewer):
     previewer.setStyleSheet(rf"""
         QDialog {{
-            background-image: url("{config.current_image_path}"); 
-            background-position: center;
+            background-image: url("{config.current_image.file_path}"); 
+            background-position: {config.current_image.position};
         }}
     """)
 
@@ -161,47 +164,106 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
 ########################################################################## configuration
 
 
-# noinspection PyAttributeOutsideInit
+@dataclass
+class BackgroundImage:
+    file_path: str
+    position: str
+    dark: bool
+
+    @classmethod
+    def from_file_path(cls, file_path):
+        file_name = os.path.basename(file_path)
+        file_name_without_extension = file_name.rsplit(".", 0)[0]
+        file_name_parts = re.split(r"[-_. ]", file_name_without_extension)
+
+        positions = {"center", "left", "right", "top", "bottom"} & {*file_name_parts}
+        position = list(positions)[0] if positions else "center"
+
+        dark_background = "dark" in file_name_parts
+
+        return cls(file_path.replace("\\", "/"), position, dark_background)
+
+no_image = BackgroundImage("", "center", False)
+
+
+def get_images_by_config_data_and_show_warning_on_error(data):
+    light_images = []
+    dark_images = []
+    errors = []
+
+    try:
+        images_folder = data["images_folder"]
+        file_names = os.listdir(images_folder)
+        file_paths = [os.path.join(images_folder, file_name) for file_name in file_names]
+
+        for file_path in file_paths:
+            if '"' in file_path:
+                errors.append(f"File name contains quotes: '{file_path}'")
+            try:
+                with open(file_path, "r"):
+                    pass
+            except Exception as e:
+                errors.append(exception_to_string(e))
+    except Exception as e:
+        errors.append(exception_to_string(e))
+
+    else:
+        for file_path in file_paths:
+            image = BackgroundImage.from_file_path(file_path)
+            (dark_images if image.dark else light_images).append(image)
+
+        if not light_images:
+            errors.append(f"Folder does not contain light background images: '{images_folder}'")
+        if not dark_images:
+            errors.append(f"Folder does not contain dark background images: '{images_folder}'")
+
+    if errors:
+        errors_str = '\n'.join(errors)
+        showWarning(
+            title="Background image",
+            text="There were issues with some of the background images. "
+                 "Expect things to break.\n\n"
+                 f"{errors_str}\n\n"
+                 "You can change images in "
+                 "Tools → Add-ons → Background image → Config.",
+            help=None,  # noqa
+        )
+
+    return light_images, dark_images
+
+
 class Config:
-    def reload(self):
-        self.data = aqt.mw.addonManager.getConfig(__name__)
+    def __init__(self):
+        self.index = random.randint(1, 1000)
+        self.light_images = []
+        self.dark_images = []
 
-        errors = []
-        for path in [self.data["dark_mode_image_path"], self.data["light_mode_image_path"]]:
-            if not os.path.exists(path):
-                errors.append(f"Image does not exist: '{path}'")
-            if '"' in path:
-                errors.append(f"Image path must not contain quotation marks: '{path}'")
-
-        if errors:
-            errors_str = '\n'.join(errors)
-            showWarning(
-                title="Background Image",
-                text="There were issues with some of the background images. "
-                     "Expect things to break.\n\n"
-                     f"{errors_str}\n\n"
-                     "You can change images in "
-                     "Tools → Add-ons → Background image → Config.",
-                help=None,  # noqa
-            )
+    def load(self):
+        data = aqt.mw.addonManager.getConfig(__name__)
+        self.light_images, self.dark_images = \
+            get_images_by_config_data_and_show_warning_on_error(data)
 
     @property
-    def current_image_path(self):
-        dark = aqt.theme.theme_manager.night_mode
-        return self.data["dark_mode_image_path" if dark else "light_mode_image_path"]
+    def current_image(self):
+        dark_mode = aqt.theme.theme_manager.night_mode
+        images = self.dark_images if dark_mode else self.light_images
+        return images[self.index % len(images)] if images else no_image
 
     @property
     def altered_dialogs(self):
         return ["AddCards", "EditCurrent", "Edit"]
 
+
 config = Config()
-config.reload()
+config.load()
 
 
 ########################################################################################
 
 
 def theme_did_change():
+    if aqt.theme.theme_manager.night_mode:
+        config.index += 1
     set_background_images_now()
 
 
