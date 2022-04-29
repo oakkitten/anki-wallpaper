@@ -41,17 +41,6 @@ tag_to_dialog_tag = {
 }
 
 
-########################################################################################
-
-
-def check_if_data_has_key_of_type(data, key, cls, type_name):
-    if key not in data:
-        return f"Configuration does not have the key '{key}'"
-
-    if not isinstance(data[key], cls):
-        return f"Configuration key '{key}' must be a {type_name}"
-
-
 def is_dark_mode():
     return aqt.theme.theme_manager.night_mode
 
@@ -64,33 +53,23 @@ class EnabledFor:
     webview_titles: list[str]
     dialog_class_names: list[str]
     dialog_tags: list[str]
-    errors: list[str]
 
     @classmethod
     def from_data(cls, data):
-        result = cls([], [], [], [])
+        result = cls([], [], [])
 
-        if error := check_if_data_has_key_of_type(data, ENABLED_FOR, list, "list"):
-            result.errors.append(error)
-        elif bad_tags := {*data[ENABLED_FOR]} - ENABLED_FOR_TAGS:
-            bad_tags_str = ', '.join(f"'{bad_tag}'" for bad_tag in bad_tags)
-            result.errors.append(
-                f"Unexpected values for configuration key '{ENABLED_FOR}':"
-                f" {bad_tags_str}"
-            )
-        else:
-            enabled_for_tags = data[ENABLED_FOR]
+        enabled_for_tags = data[ENABLED_FOR]
 
-            if MAIN_WINDOW in enabled_for_tags:
-                result.webview_titles += ["top toolbar", "main webview", "bottom toolbar"]
+        if MAIN_WINDOW in enabled_for_tags:
+            result.webview_titles += ["top toolbar", "main webview", "bottom toolbar"]
 
-            if PREVIEWER in enabled_for_tags:
-                result.webview_titles += ["previewer"]
+        if PREVIEWER in enabled_for_tags:
+            result.webview_titles += ["previewer"]
 
-            for tag in [ADD_CARDS, EDIT_CURRENT, EDIT]:
-                if tag in enabled_for_tags:
-                    result.dialog_class_names.append(tag_to_dialog_class_names[tag])
-                    result.dialog_tags.append(tag_to_dialog_tag[tag])
+        for tag in [ADD_CARDS, EDIT_CURRENT, EDIT]:
+            if tag in enabled_for_tags:
+                result.dialog_class_names.append(tag_to_dialog_class_names[tag])
+                result.dialog_tags.append(tag_to_dialog_tag[tag])
 
         return result
 
@@ -132,41 +111,38 @@ class Wallpapers:
     def from_data(cls, data):
         result = cls([], [], [])
 
-        if error := check_if_data_has_key_of_type(data, FOLDER_WITH_WALLPAPERS, str, "string"):
-            result.errors.append(error)
+        folder_path = data[FOLDER_WITH_WALLPAPERS]
+
+        try:
+            file_names = os.listdir(folder_path)
+        except Exception as e:
+            result.errors.append(f"Error opening wallpaper folder: '{folder_path}': {e}")
         else:
-            folder_path = data[FOLDER_WITH_WALLPAPERS]
+            for file_name in file_names:
+                file_path = os.path.join(folder_path, file_name)
 
-            try:
-                file_names = os.listdir(folder_path)
-            except Exception as e:
-                result.errors.append(f"Error opening wallpaper folder: '{folder_path}': {e}")
-            else:
-                for file_name in file_names:
-                    file_path = os.path.join(folder_path, file_name)
+                if '"' in file_path:
+                    result.errors.append(f"File path contains quotes: '{file_path}'")
 
-                    if '"' in file_path:
-                        result.errors.append(f"File path contains quotes: '{file_path}'")
+                try:
+                    with open(file_path, "r"):
+                        pass
+                except Exception as e:
+                    result.errors.append(f"Error opening file '{file_path}': {e}")
 
-                    try:
-                        with open(file_path, "r"):
-                            pass
-                    except Exception as e:
-                        result.errors.append(f"Error opening file '{file_path}': {e}")
+                wallpaper = Wallpaper.from_file_path(file_path)
 
-                    wallpaper = Wallpaper.from_file_path(file_path)
+                if wallpaper.dark:
+                    result.dark.append(wallpaper)
+                else:
+                    result.light.append(wallpaper)
 
-                    if wallpaper.dark:
-                        result.dark.append(wallpaper)
-                    else:
-                        result.light.append(wallpaper)
-
-                if not result.light:
-                    result.errors.append(
-                        f"Folder does not contain light wallpapers: '{folder_path}'")
-                if not result.dark:
-                    result.errors.append(
-                        f"Folder does not contain dark wallpapers: '{folder_path}'")
+            if not result.light:
+                result.errors.append(
+                    f"Folder does not contain light wallpapers: '{folder_path}'")
+            if not result.dark:
+                result.errors.append(
+                    f"Folder does not contain dark wallpapers: '{folder_path}'")
 
         return result
 
@@ -178,23 +154,10 @@ class Wallpapers:
 class Indexes:
     light: int
     dark: int
-    errors: list[str]
 
     @classmethod
     def from_data(cls, data):
-        result = cls(0, 0, [])
-
-        if error := check_if_data_has_key_of_type(data, LIGHT_WALLPAPER_INDEX, int, "integer"):
-            result.errors.append(error)
-        else:
-            result.light = data[LIGHT_WALLPAPER_INDEX]
-
-        if error := check_if_data_has_key_of_type(data, DARK_WALLPAPER_INDEX, int, "integer"):
-            result.errors.append(error)
-        else:
-            result.dark = data[DARK_WALLPAPER_INDEX]
-
-        return result
+        return cls(data[LIGHT_WALLPAPER_INDEX], data[DARK_WALLPAPER_INDEX])
 
 
 ########################################################################################
@@ -217,9 +180,9 @@ def show_config_errors_warning(errors):
 
 class Config:
     def __init__(self):
-        self.enabled_for = EnabledFor([], [], [], [])
+        self.enabled_for = EnabledFor([], [], [])
         self.wallpapers = Wallpapers([], [], [])
-        self.indexes = Indexes(0, 0, [])
+        self.indexes = Indexes(0, 0)
 
     def load(self):
         data = aqt.mw.addonManager.getConfig(__name__)
@@ -228,8 +191,8 @@ class Config:
         self.wallpapers = Wallpapers.from_data(data)
         self.indexes = Indexes.from_data(data)
 
-        if errors := self.enabled_for.errors + self.wallpapers.errors + self.indexes.errors:
-            show_config_errors_warning(errors)
+        if self.wallpapers.errors:
+            show_config_errors_warning(self.wallpapers.errors)
 
     def next_wallpaper(self):
         data = aqt.mw.addonManager.getConfig(__name__)
@@ -249,6 +212,3 @@ class Config:
 
 def on_configuration_changed_run(function):
     aqt.mw.addonManager.setConfigUpdatedAction(__name__, lambda *_: function())
-
-
-print(__name__)

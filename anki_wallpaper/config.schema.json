@@ -1,0 +1,36 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "title": "Wallpaper configuration",
+    "properties": {
+        "enabled_for": {
+            "type": "array",
+            "title": "Enabled for",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "main_window",
+                    "add_cards",
+                    "edit_current",
+                    "edit",
+                    "previewer"
+                ]
+            }
+        },
+        "folder_with_wallpapers": {
+            "type": "string",
+            "title": "Folder with wallpapers",
+            "default": ""
+        },
+        "light_wallpaper_index": {
+            "type": "integer",
+            "title": "Light wallpaper index",
+            "default": 0
+        },
+        "dark_wallpaper_index": {
+            "type": "integer",
+            "title": "Dark wallpaper index",
+            "default": 0
+        }
+    }
+}
