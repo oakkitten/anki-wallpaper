@@ -24,20 +24,11 @@ EDIT_CURRENT = "edit_current"
 EDIT = "edit"
 PREVIEWER = "previewer"
 
-ENABLED_FOR_TAGS = {MAIN_WINDOW, ADD_CARDS, EDIT_CURRENT, EDIT, PREVIEWER}
 
-
-tag_to_dialog_class_names = {
+tag_to_dialog_class_name = {
     ADD_CARDS: "AddCards",
     EDIT_CURRENT: "EditCurrent",
     EDIT: "Edit",
-}
-
-
-tag_to_dialog_tag = {
-    ADD_CARDS: "AddCards",
-    EDIT_CURRENT: "EditCurrent",
-    EDIT: "foosoft.ankiconnect.Edit",
 }
 
 
@@ -49,27 +40,26 @@ def is_dark_mode():
 
 
 @dataclass
-class EnabledFor:
-    webview_titles: list[str]
-    dialog_class_names: list[str]
-    dialog_tags: list[str]
+class IsEnabled:
+    for_main_window: bool
+    for_previewer: bool
+    for_dialog_class_names: list[str]
+
+    def for_dialog(self, class_name):
+        return class_name in self.for_dialog_class_names
 
     @classmethod
     def from_data(cls, data):
-        result = cls([], [], [])
+        result = cls(False, False, [])
 
         enabled_for_tags = data[ENABLED_FOR]
 
-        if MAIN_WINDOW in enabled_for_tags:
-            result.webview_titles += ["top toolbar", "main webview", "bottom toolbar"]
-
-        if PREVIEWER in enabled_for_tags:
-            result.webview_titles += ["previewer"]
+        result.for_main_window = MAIN_WINDOW in enabled_for_tags
+        result.for_previewer = PREVIEWER in enabled_for_tags
 
         for tag in [ADD_CARDS, EDIT_CURRENT, EDIT]:
             if tag in enabled_for_tags:
-                result.dialog_class_names.append(tag_to_dialog_class_names[tag])
-                result.dialog_tags.append(tag_to_dialog_tag[tag])
+                result.for_dialog_class_names.append(tag_to_dialog_class_name[tag])
 
         return result
 
@@ -180,14 +170,14 @@ def show_config_errors_warning(errors):
 
 class Config:
     def __init__(self):
-        self.enabled_for = EnabledFor([], [], [])
+        self.is_enabled = IsEnabled(False, False, [])
         self.wallpapers = Wallpapers([], [], [])
         self.indexes = Indexes(0, 0)
 
     def load(self):
         data = aqt.mw.addonManager.getConfig(__name__)
 
-        self.enabled_for = EnabledFor.from_data(data)
+        self.is_enabled = IsEnabled.from_data(data)
         self.wallpapers = Wallpapers.from_data(data)
         self.indexes = Indexes.from_data(data)
 

@@ -15,6 +15,20 @@ from .tools import append_to_method, replace_method, exception_to_string
 anki_version = tuple(int(segment) for segment in aqt.appVersion.split("."))
 
 
+ALTERED_DIALOGS_CLASS_NAMES = {
+    "AddCards",
+    "EditCurrent",
+    "Edit",
+}
+
+
+ALTERED_DIALOGS_TAGS = {
+    "AddCards",
+    "EditCurrent",
+    "foosoft.ankiconnect.Edit",
+}
+
+
 def set_main_window_wallpaper():
     aqt.mw.setStyleSheet(rf"""
         QMainWindow {{
@@ -26,6 +40,9 @@ def set_main_window_wallpaper():
         #centralwidget {{  background: transparent; }}
     """)
 
+def unset_main_window_wallpaper():
+    aqt.mw.setStyleSheet("")
+
 
 def set_dialog_wallpaper(dialog):
     class_name = dialog.__class__.__name__
@@ -35,6 +52,9 @@ def set_dialog_wallpaper(dialog):
             background-position: {config.current_wallpaper.position};
         }}
     """)
+
+def unset_dialog_wallpaper(dialog):
+    dialog.setStyleSheet("")
 
 
 def set_previewer_wallpaper(previewer):
@@ -50,11 +70,17 @@ def set_previewer_wallpaper(previewer):
 #   previewer is not registered with the dialog manager
 #   so we can't just grab the instance as easily as with the other dialogs
 def set_wallpapers_now():
-    set_main_window_wallpaper()
+    if config.is_enabled.for_main_window:
+        set_main_window_wallpaper()
+    else:
+        unset_main_window_wallpaper()
 
-    for dialog_tag in config.enabled_for.dialog_tags:
+    for dialog_tag in ALTERED_DIALOGS_TAGS:
         if dialog := get_dialog_instance_or_none(dialog_tag):
-            set_dialog_wallpaper(dialog)
+            if config.is_enabled.for_dialog(dialog.__class__.__name__):
+                set_dialog_wallpaper(dialog)
+            else:
+                unset_dialog_wallpaper(dialog)
 
 
 ############################################################################## web views
@@ -75,14 +101,19 @@ monstrous_transparent_color = MonstrousTransparentColor()
 
 @replace_method(aqt.editor.EditorWebView, "__init__")
 def editor_webview_init(self, parent, editor):
-    if editor.parentWindow.__class__.__name__ in config.enabled_for.dialog_class_names:
+    if editor.parentWindow.__class__.__name__ in ALTERED_DIALOGS_CLASS_NAMES:
         self._transparent = True
     editor_webview_init.original_method(self, parent, editor)
 
 
 @replace_method(aqt.webview.AnkiWebView, "get_window_bg_color")
 def webview_get_window_bg_color(self, *args, **kwargs):
-    transparent = getattr(self, "_transparent", False) or self.title in config.enabled_for.webview_titles
+    transparent = getattr(self, "_transparent", False) or self.title in [
+        "top toolbar",
+        "main webview",
+        "bottom toolbar",
+        "previewer"
+    ]
 
     if transparent:
         self.page().setBackgroundColor(Qt.GlobalColor.transparent)
@@ -96,7 +127,8 @@ def webview_get_window_bg_color(self, *args, **kwargs):
 
 @append_to_method(aqt.browser.previewer.Previewer, "__init__")
 def previewer_init(self, *_args, **_kwargs):
-    set_previewer_wallpaper(self)
+    if config.is_enabled.for_previewer:
+        set_previewer_wallpaper(self)
 
 
 @append_to_method(aqt.browser.previewer.Previewer, "show")
@@ -118,13 +150,15 @@ def add_cards_init(self, *_args, **_kwargs):
 @append_to_method(aqt.editor.Editor, "setupWeb")
 def editor_init(self, *_args, **_kwargs):
     dialog = self.parentWindow
+    dialog_class_name = dialog.__class__.__name__
 
-    if dialog.__class__.__name__ in config.enabled_for.dialog_class_names:
-        set_dialog_wallpaper(dialog)
-
+    if dialog_class_name in ALTERED_DIALOGS_CLASS_NAMES:
         self.widget.setStyleSheet(r"""
             EditorWebView { background: transparent }
         """)
+
+        if config.is_enabled.for_dialog(dialog_class_name):
+            set_dialog_wallpaper(dialog)
 
 
 ############################################################# web view css manipulations
@@ -144,7 +178,7 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
         </style>"""
 
     if isinstance(context, aqt.editor.Editor):
-        if context.parentWindow.__class__.__name__ in config.enabled_for.dialog_class_names:
+        if context.parentWindow.__class__.__name__ in ALTERED_DIALOGS_CLASS_NAMES:
             web_content.head += """<style>
                 body {background: none !important }
                 .sticky-container, .container-fluid { background: none !important }
