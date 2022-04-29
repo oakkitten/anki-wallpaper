@@ -231,6 +231,12 @@ class Config:
         if errors := self.enabled_for.errors + self.wallpapers.errors + self.indexes.errors:
             show_config_errors_warning(errors)
 
+    def next_wallpaper(self):
+        data = aqt.mw.addonManager.getConfig(__name__)
+        data[DARK_WALLPAPER_INDEX if is_dark_mode() else LIGHT_WALLPAPER_INDEX] += 1
+        aqt.mw.addonManager.writeConfig(__name__, data)
+        self.indexes = Indexes.from_data(data)
+
     @property
     def current_wallpaper(self):
         wallpapers = self.wallpapers.dark if is_dark_mode() else self.wallpapers.light

@@ -5,7 +5,7 @@ import aqt.editor
 import aqt.theme
 import aqt.webview
 from aqt import gui_hooks
-from aqt.qt import Qt, QColor
+from aqt.qt import Qt, QColor, QAction
 
 from .anki_tools import get_dialog_instance_or_none
 from .config import Config
@@ -154,6 +154,19 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
 ########################################################################################
 
 
+def setup_next_wallpaper_menu():
+    def next_wallpaper():
+        config.next_wallpaper()
+        set_wallpapers_now()
+
+    menu_next_wallpaper = QAction("Next wallpaper", aqt.mw, shortcut="Ctrl+Shift+W")  # noqa
+    menu_next_wallpaper.triggered.connect(next_wallpaper)  # noqa
+    menu_next_wallpaper.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
+
+    aqt.mw.form.menuTools.addSeparator()
+    aqt.mw.form.menuTools.addAction(menu_next_wallpaper)
+
+
 config = Config()
 config.load()
 
@@ -164,4 +177,5 @@ if anki_version >= (2, 1, 50):
 gui_hooks.webview_will_set_content.append(webview_will_set_content)
 
 
+setup_next_wallpaper_menu()
 set_wallpapers_now()
