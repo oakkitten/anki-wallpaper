@@ -1,5 +1,5 @@
 {
 	"version": 0,
-	"images_folder": "",
-	"change_image_on_deck_browser": true
+	"folder_with_wallpapers": "",
+	"change_wallpaper_on_deck_browser": true
 }

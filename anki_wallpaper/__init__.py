@@ -13,18 +13,18 @@ from aqt import gui_hooks
 from aqt.qt import Qt, QColor
 from aqt.utils import showWarning
 
-from .anki_tool import get_dialog_instance_or_none
+from .anki_tools import get_dialog_instance_or_none
 from .tools import append_to_method, replace_method, exception_to_string
 
 
 anki_version = tuple(int(segment) for segment in aqt.appVersion.split("."))
 
 
-def set_main_window_background_image():
+def set_main_window_wallpaper():
     aqt.mw.setStyleSheet(rf"""
         QMainWindow {{
-            background-image: url("{config.current_image.file_path}"); 
-            background-position: {config.current_image.position};
+            background-image: url("{config.current_wallpaper.url}"); 
+            background-position: {config.current_wallpaper.position};
         }}
         
         QMenuBar {{ background: transparent; }}
@@ -32,34 +32,34 @@ def set_main_window_background_image():
     """)
 
 
-def set_dialog_background_image(dialog):
+def set_dialog_wallpaper(dialog):
     class_name = dialog.__class__.__name__
     dialog.setStyleSheet(rf"""
         {class_name} {{
-            background-image: url("{config.current_image.file_path}"); 
-            background-position: {config.current_image.position};
+            background-image: url("{config.current_wallpaper.url}"); 
+            background-position: {config.current_wallpaper.position};
         }}
     """)
 
 
-def set_previewer_background_image(previewer):
+def set_previewer_wallpaper(previewer):
     previewer.setStyleSheet(rf"""
         QDialog {{
-            background-image: url("{config.current_image.file_path}"); 
-            background-position: {config.current_image.position};
+            background-image: url("{config.current_wallpaper.url}"); 
+            background-position: {config.current_wallpaper.position};
         }}
     """)
 
 
-# todo also change background images for the previewer?
+# todo also change wallpaper for the previewer?
 #   previewer is not registered with the dialog manager
 #   so we can't just grab the instance as easily as with the other dialogs
-def set_background_images_now():
-    set_main_window_background_image()
+def set_wallpapers_now():
+    set_main_window_wallpaper()
 
     for dialog_name in config.altered_dialogs:
         if dialog := get_dialog_instance_or_none(dialog_name):
-            set_dialog_background_image(dialog)
+            set_dialog_wallpaper(dialog)
 
 
 ############################################################################## web views
@@ -106,7 +106,7 @@ def webview_get_window_bg_color(self, *args, **kwargs):
 
 @append_to_method(aqt.browser.previewer.Previewer, "__init__")
 def previewer_init(self, *_args, **_kwargs):
-    set_previewer_background_image(self)
+    set_previewer_wallpaper(self)
 
 
 @append_to_method(aqt.browser.previewer.Previewer, "show")
@@ -130,7 +130,7 @@ def editor_init(self, *_args, **_kwargs):
     dialog = self.parentWindow
 
     if dialog.__class__.__name__ in config.altered_dialogs:
-        set_dialog_background_image(dialog)
+        set_dialog_wallpaper(dialog)
 
         self.widget.setStyleSheet(r"""
             EditorWebView { background: transparent }
@@ -165,15 +165,15 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
 
 
 @dataclass
-class BackgroundImage:
-    file_path: str
+class Wallpaper:
+    url: str
     position: str
     dark: bool
 
     @classmethod
     def from_file_path(cls, file_path):
         file_name = os.path.basename(file_path)
-        file_name_without_extension = file_name.rsplit(".", 0)[0]
+        file_name_without_extension = file_name.rsplit(".", 1)[0]
         file_name_parts = re.split(r"[-_. ]", file_name_without_extension)
 
         positions = {"center", "left", "right", "top", "bottom"} & {*file_name_parts}
@@ -183,18 +183,18 @@ class BackgroundImage:
 
         return cls(file_path.replace("\\", "/"), position, dark_background)
 
-no_image = BackgroundImage("", "center", False)
+no_wallpaper = Wallpaper("", "center", False)
 
 
-def get_images_by_config_data_and_show_warning_on_error(data):
-    light_images = []
-    dark_images = []
+def get_wallpapers_by_config_data_and_show_warning_on_error(data):
+    light_wallpapers = []
+    dark_wallpapers = []
     errors = []
 
     try:
-        images_folder = data["images_folder"]
-        file_names = os.listdir(images_folder)
-        file_paths = [os.path.join(images_folder, file_name) for file_name in file_names]
+        folder = data["folder_with_wallpapers"]
+        file_names = os.listdir(folder)
+        file_paths = [os.path.join(folder, file_name) for file_name in file_names]
 
         for file_path in file_paths:
             if '"' in file_path:
@@ -209,52 +209,52 @@ def get_images_by_config_data_and_show_warning_on_error(data):
 
     else:
         for file_path in file_paths:
-            image = BackgroundImage.from_file_path(file_path)
-            (dark_images if image.dark else light_images).append(image)
+            wallpaper = Wallpaper.from_file_path(file_path)
+            (dark_wallpapers if wallpaper.dark else light_wallpapers).append(wallpaper)
 
-        if not light_images:
-            errors.append(f"Folder does not contain light background images: '{images_folder}'")
-        if not dark_images:
-            errors.append(f"Folder does not contain dark background images: '{images_folder}'")
+        if not light_wallpapers:
+            errors.append(f"Folder does not contain light wallpapers: '{folder}'")
+        if not dark_wallpapers:
+            errors.append(f"Folder does not contain dark wallpapers: '{folder}'")
 
     if errors:
         errors_str = '\n'.join(errors)
         showWarning(
-            title="Background image",
-            text="There were issues with some of the background images. "
+            title="Wallpaper",
+            text="There were issues with some of the wallpapers. "
                  "Expect things to break.\n\n"
                  f"{errors_str}\n\n"
-                 "You can change images in "
+                 "You can change settings in "
                  "Tools → Add-ons → Background image → Config.",
             help=None,  # noqa
         )
 
-    return light_images, dark_images
+    return light_wallpapers, dark_wallpapers
 
 
 class Config:
     def __init__(self):
         self.index = random.randint(1, 1000)
-        self.light_images = []
-        self.dark_images = []
-        self.change_image_on_deck_browser = False
+        self.light_wallpapers = []
+        self.dark_wallpapers = []
+        self.change_wallpaper_on_deck_browser = False
 
     def load(self):
         data = aqt.mw.addonManager.getConfig(__name__)
-        self.change_image_on_deck_browser = \
-            data.get("change_image_on_deck_browser", False)
-        self.light_images, self.dark_images = \
-            get_images_by_config_data_and_show_warning_on_error(data)
+        self.change_wallpaper_on_deck_browser = \
+            data.get("change_wallpaper_on_deck_browser", False)
+        self.light_wallpapers, self.dark_wallpapers = \
+            get_wallpapers_by_config_data_and_show_warning_on_error(data)
 
     @property
-    def current_image(self):
+    def current_wallpaper(self):
         dark_mode = aqt.theme.theme_manager.night_mode
-        images = self.dark_images if dark_mode else self.light_images
-        return images[self.index % len(images)] if images else no_image
+        wallpapers = self.dark_wallpapers if dark_mode else self.light_wallpapers
+        return wallpapers[self.index % len(wallpapers)] if wallpapers else no_wallpaper
 
     @property
     def altered_dialogs(self):
-        return ["AddCards", "EditCurrent", "Edit"]  # proper dialog id anki connct
+        return ["AddCards", "EditCurrent", "Edit"]  # todo proper dialog id anki connect
 
 
 config = Config()
@@ -265,16 +265,16 @@ config.load()
 
 
 def state_did_change(new_state, _old_state):
-    if new_state == "deckBrowser" and config.change_image_on_deck_browser:
+    if new_state == "deckBrowser" and config.change_wallpaper_on_deck_browser:
         config.index += 1
-        set_background_images_now()
+        set_wallpapers_now()
 
 
 if anki_version >= (2, 1, 50):
-    gui_hooks.theme_did_change.append(set_background_images_now)
+    gui_hooks.theme_did_change.append(set_wallpapers_now)
 
 gui_hooks.webview_will_set_content.append(webview_will_set_content)
 gui_hooks.state_did_change.append(state_did_change)
 
 
-set_background_images_now()
+set_wallpapers_now()
