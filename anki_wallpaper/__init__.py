@@ -7,9 +7,9 @@ import aqt.webview
 from aqt import gui_hooks
 from aqt.qt import Qt, QColor, QAction
 
+from .config import Config, run_on_configuration_change
+from .tools import append_to_method, replace_method, prepend_to_method
 from .tools import get_dialog_instance_or_none
-from .config import Config, on_configuration_changed_run
-from .tools import append_to_method, replace_method, exception_to_string
 
 
 anki_version = tuple(int(segment) for segment in aqt.appVersion.split("."))
@@ -22,7 +22,7 @@ ALTERED_DIALOGS_CLASS_NAMES = {
 }
 
 
-ALTERED_DIALOGS_TAGS = {
+ALTERED_DIALOGS_DIALOG_MANAGER_TAGS = {
     "AddCards",
     "EditCurrent",
     "foosoft.ankiconnect.Edit",
@@ -45,9 +45,8 @@ def unset_main_window_wallpaper():
 
 
 def set_dialog_wallpaper(dialog):
-    class_name = dialog.__class__.__name__
     dialog.setStyleSheet(rf"""
-        {class_name} {{
+        {dialog.__class__.__name__} {{
             background-image: url("{config.current_wallpaper.url}"); 
             background-position: {config.current_wallpaper.position};
         }}
@@ -75,9 +74,9 @@ def set_wallpapers_now():
     else:
         unset_main_window_wallpaper()
 
-    for dialog_tag in ALTERED_DIALOGS_TAGS:
+    for dialog_tag in ALTERED_DIALOGS_DIALOG_MANAGER_TAGS:
         if dialog := get_dialog_instance_or_none(dialog_tag):
-            if config.is_enabled.for_dialog(dialog.__class__.__name__):
+            if config.is_enabled.for_dialog(class_name=dialog.__class__.__name__):
                 set_dialog_wallpaper(dialog)
             else:
                 unset_dialog_wallpaper(dialog)
@@ -99,11 +98,10 @@ class MonstrousTransparentColor(QColor):
 monstrous_transparent_color = MonstrousTransparentColor()
 
 
-@replace_method(aqt.editor.EditorWebView, "__init__")
-def editor_webview_init(self, parent, editor):
+@prepend_to_method(aqt.editor.EditorWebView, "__init__")
+def editor_webview_init(self, _parent, editor):
     if editor.parentWindow.__class__.__name__ in ALTERED_DIALOGS_CLASS_NAMES:
         self._transparent = True
-    editor_webview_init.original_method(self, parent, editor)
 
 
 @replace_method(aqt.webview.AnkiWebView, "get_window_bg_color")
@@ -137,7 +135,8 @@ def previewer_show(self, *_args, **_kwargs):
         #_web { background: transparent }
     """)
 
-############################################################# add cards and edit current
+
+####################################################### add cards, edit current and edit
 
 
 @append_to_method(aqt.addcards.AddCards, "__init__")
@@ -194,8 +193,8 @@ def setup_next_wallpaper_menu():
         set_wallpapers_now()
 
     menu_next_wallpaper = QAction("Next wallpaper", aqt.mw, shortcut="Ctrl+Shift+W")  # noqa
-    menu_next_wallpaper.triggered.connect(next_wallpaper)  # noqa
     menu_next_wallpaper.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
+    menu_next_wallpaper.triggered.connect(next_wallpaper)  # noqa
 
     aqt.mw.form.menuTools.addSeparator()
     aqt.mw.form.menuTools.addAction(menu_next_wallpaper)
@@ -205,11 +204,10 @@ config = Config()
 config.load()
 
 
-def on_configuration_changed(*_args):
+@run_on_configuration_change
+def on_configuration_change():
     config.load()
     set_wallpapers_now()
-
-on_configuration_changed_run(on_configuration_changed)
 
 
 if anki_version >= (2, 1, 50):

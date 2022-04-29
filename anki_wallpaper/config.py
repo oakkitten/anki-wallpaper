@@ -43,7 +43,7 @@ def is_dark_mode():
 class IsEnabled:
     for_main_window: bool
     for_previewer: bool
-    for_dialog_class_names: list[str]
+    for_dialog_class_names: "list[str]"
 
     def for_dialog(self, class_name):
         return class_name in self.for_dialog_class_names
@@ -93,9 +93,9 @@ Wallpaper.missing = Wallpaper("", "center", False)
 
 @dataclass
 class Wallpapers:
-    light: list[Wallpaper]
-    dark: list[Wallpaper]
-    errors: list[str]
+    light: "list[Wallpaper]"
+    dark: "list[Wallpaper]"
+    errors: "list[str]"
 
     @classmethod
     def from_data(cls, data):
@@ -106,7 +106,7 @@ class Wallpapers:
         try:
             file_names = os.listdir(folder_path)
         except Exception as e:
-            result.errors.append(f"Error opening wallpaper folder: '{folder_path}': {e}")
+            result.errors.append(f"Error opening wallpaper folder '{folder_path}': {e}")
         else:
             for file_name in file_names:
                 file_path = os.path.join(folder_path, file_name)
@@ -153,13 +153,13 @@ class Indexes:
 ########################################################################################
 
 
-def show_config_errors_warning(errors):
+def show_warning_about_wallpaper_folder_config_errors(errors):
     errors_str = '\n'.join(errors)
 
     showWarning(
         title="Wallpaper",
         text="Hello, this is the Wallpaper add-on! "
-             "I had some issues with my configuration. "
+             "I have some issues with the wallpaper folder setting. "
              "Things will probably break. Sorry! "
              "(It's probably your fault, though.)"
              "\n\n"
@@ -182,7 +182,7 @@ class Config:
         self.indexes = Indexes.from_data(data)
 
         if self.wallpapers.errors:
-            show_config_errors_warning(self.wallpapers.errors)
+            show_warning_about_wallpaper_folder_config_errors(self.wallpapers.errors)
 
     def next_wallpaper(self):
         data = aqt.mw.addonManager.getConfig(__name__)
@@ -196,9 +196,6 @@ class Config:
         index = self.indexes.dark if is_dark_mode() else self.indexes.light
         return wallpapers[index % len(wallpapers)] if wallpapers else Wallpaper.missing
 
-    def reload_on_change(self):
-        aqt.mw.addonManager.setConfigUpdatedAction(lambda *_: self.load)
 
-
-def on_configuration_changed_run(function):
+def run_on_configuration_change(function):
     aqt.mw.addonManager.setConfigUpdatedAction(__name__, lambda *_: function())

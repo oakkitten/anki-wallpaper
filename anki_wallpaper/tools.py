@@ -15,6 +15,12 @@ def patch_method(obj, method_name, action):
             def patched_method(*args, **kwargs):
                 return function(*args, **kwargs)
 
+        elif action == "prepend":
+            @wraps(function)
+            def patched_method(*args, **kwargs):
+                function(*args, **kwargs)
+                return original_method(*args, **kwargs)
+
         elif action == "append":
             @wraps(function)
             def patched_method(*args, **kwargs):
@@ -31,13 +37,9 @@ def patch_method(obj, method_name, action):
 
     return decorator
 
+prepend_to_method = partial(patch_method, action="prepend")
 append_to_method = partial(patch_method, action="append")
 replace_method = partial(patch_method, action="replace")
-
-
-def exception_to_string(exception):
-    exception_class = exception.__class__.__name__
-    return f"{exception_class}: {exception}"
 
 
 def get_dialog_instance_or_none(name):
