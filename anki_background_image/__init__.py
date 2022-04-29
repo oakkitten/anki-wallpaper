@@ -237,9 +237,12 @@ class Config:
         self.index = random.randint(1, 1000)
         self.light_images = []
         self.dark_images = []
+        self.change_image_on_deck_browser = False
 
     def load(self):
         data = aqt.mw.addonManager.getConfig(__name__)
+        self.change_image_on_deck_browser = \
+            data.get("change_image_on_deck_browser", False)
         self.light_images, self.dark_images = \
             get_images_by_config_data_and_show_warning_on_error(data)
 
@@ -251,7 +254,7 @@ class Config:
 
     @property
     def altered_dialogs(self):
-        return ["AddCards", "EditCurrent", "Edit"]
+        return ["AddCards", "EditCurrent", "Edit"]  # proper dialog id anki connct
 
 
 config = Config()
@@ -261,16 +264,17 @@ config.load()
 ########################################################################################
 
 
-def theme_did_change():
-    if aqt.theme.theme_manager.night_mode:
+def state_did_change(new_state, _old_state):
+    if new_state == "deckBrowser" and config.change_image_on_deck_browser:
         config.index += 1
-    set_background_images_now()
+        set_background_images_now()
 
 
 if anki_version >= (2, 1, 50):
-    gui_hooks.theme_did_change.append(theme_did_change)
+    gui_hooks.theme_did_change.append(set_background_images_now)
 
 gui_hooks.webview_will_set_content.append(webview_will_set_content)
+gui_hooks.state_did_change.append(state_did_change)
 
 
 set_background_images_now()

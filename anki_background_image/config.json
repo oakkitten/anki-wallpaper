@@ -1,4 +1,5 @@
 {
 	"version": 0,
-	"images_folder": ""
+	"images_folder": "",
+	"change_image_on_deck_browser": true
 }

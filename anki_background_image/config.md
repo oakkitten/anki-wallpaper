@@ -21,4 +21,8 @@ Some examples:
 * `clouds.jpg`: light mode, center-anchored
 * `gloomy_mountains-dark-top.jpeg`: dark mode, top-anchored.
 
+If `change_image_on_deck_browser` is `true`, 
+the next background image will be shown whenever you click on `Decks`
+or press the `d` key. To disable, set to `false`.
+
 The configuration takes effect on restart.
