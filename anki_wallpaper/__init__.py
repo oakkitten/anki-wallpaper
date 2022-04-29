@@ -52,8 +52,8 @@ def set_previewer_wallpaper(previewer):
 def set_wallpapers_now():
     set_main_window_wallpaper()
 
-    for dialog_name in config.altered_dialogs:
-        if dialog := get_dialog_instance_or_none(dialog_name):
+    for dialog_tag in config.enabled_for.dialog_tags:
+        if dialog := get_dialog_instance_or_none(dialog_tag):
             set_dialog_wallpaper(dialog)
 
 
@@ -75,19 +75,14 @@ monstrous_transparent_color = MonstrousTransparentColor()
 
 @replace_method(aqt.editor.EditorWebView, "__init__")
 def editor_webview_init(self, parent, editor):
-    if editor.parentWindow.__class__.__name__ in config.altered_dialogs:
+    if editor.parentWindow.__class__.__name__ in config.enabled_for.dialog_class_names:
         self._transparent = True
     editor_webview_init.original_method(self, parent, editor)
 
 
 @replace_method(aqt.webview.AnkiWebView, "get_window_bg_color")
 def webview_get_window_bg_color(self, *args, **kwargs):
-    transparent = getattr(self, "_transparent", False) or self.title in [
-        "top toolbar",
-        "main webview",
-        "bottom toolbar",
-        "previewer",
-    ]
+    transparent = getattr(self, "_transparent", False) or self.title in config.enabled_for.webview_titles
 
     if transparent:
         self.page().setBackgroundColor(Qt.GlobalColor.transparent)
@@ -124,7 +119,7 @@ def add_cards_init(self, *_args, **_kwargs):
 def editor_init(self, *_args, **_kwargs):
     dialog = self.parentWindow
 
-    if dialog.__class__.__name__ in config.altered_dialogs:
+    if dialog.__class__.__name__ in config.enabled_for.dialog_class_names:
         set_dialog_wallpaper(dialog)
 
         self.widget.setStyleSheet(r"""
@@ -149,7 +144,7 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
         </style>"""
 
     if isinstance(context, aqt.editor.Editor):
-        if context.parentWindow.__class__.__name__ in config.altered_dialogs:
+        if context.parentWindow.__class__.__name__ in config.enabled_for.dialog_class_names:
             web_content.head += """<style>
                 body {background: none !important }
                 .sticky-container, .container-fluid { background: none !important }
@@ -163,17 +158,10 @@ config = Config()
 config.load()
 
 
-def state_did_change(new_state, _old_state):
-    if new_state == "deckBrowser" and config.change_wallpaper_on_deck_browser:
-        config.index += 1
-        set_wallpapers_now()
-
-
 if anki_version >= (2, 1, 50):
     gui_hooks.theme_did_change.append(set_wallpapers_now)
 
 gui_hooks.webview_will_set_content.append(webview_will_set_content)
-gui_hooks.state_did_change.append(state_did_change)
 
 
 set_wallpapers_now()

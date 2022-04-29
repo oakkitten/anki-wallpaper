@@ -1,5 +1,13 @@
 {
 	"version": 0,
 	"folder_with_wallpapers": "",
-	"change_wallpaper_on_deck_browser": true
+	"enabled_for": [
+		"main_window",
+		"add_cards",
+		"edit_current",
+		"edit",
+		"previewer"
+	],
+	"light_wallpaper_index": 0,
+	"dark_wallpaper_index": 0
 }
