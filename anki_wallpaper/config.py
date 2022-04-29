@@ -72,7 +72,7 @@ class EnabledFor:
 
         if error := check_if_data_has_key_of_type(data, ENABLED_FOR, list, "list"):
             result.errors.append(error)
-        elif bad_tags := ENABLED_FOR_TAGS - {*data[ENABLED_FOR]}:
+        elif bad_tags := {*data[ENABLED_FOR]} - ENABLED_FOR_TAGS:
             bad_tags_str = ', '.join(f"'{bad_tag}'" for bad_tag in bad_tags)
             result.errors.append(
                 f"Unexpected values for configuration key '{ENABLED_FOR}':"
@@ -242,3 +242,13 @@ class Config:
         wallpapers = self.wallpapers.dark if is_dark_mode() else self.wallpapers.light
         index = self.indexes.dark if is_dark_mode() else self.indexes.light
         return wallpapers[index % len(wallpapers)] if wallpapers else Wallpaper.missing
+
+    def reload_on_change(self):
+        aqt.mw.addonManager.setConfigUpdatedAction(lambda *_: self.load)
+
+
+def on_configuration_changed_run(function):
+    aqt.mw.addonManager.setConfigUpdatedAction(__name__, lambda *_: function())
+
+
+print(__name__)

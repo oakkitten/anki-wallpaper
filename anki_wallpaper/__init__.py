@@ -8,7 +8,7 @@ from aqt import gui_hooks
 from aqt.qt import Qt, QColor, QAction
 
 from .anki_tools import get_dialog_instance_or_none
-from .config import Config
+from .config import Config, on_configuration_changed_run
 from .tools import append_to_method, replace_method, exception_to_string
 
 
@@ -169,6 +169,13 @@ def setup_next_wallpaper_menu():
 
 config = Config()
 config.load()
+
+
+def on_configuration_changed(*_args):
+    config.load()
+    set_wallpapers_now()
+
+on_configuration_changed_run(on_configuration_changed)
 
 
 if anki_version >= (2, 1, 50):

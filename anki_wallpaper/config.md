@@ -49,4 +49,4 @@ Some examples:
 * `clouds.jpg`: light mode, center-anchored;
 * `gloomy_mountains-dark-top.jpeg`: dark mode, top-anchored.
 
-The configuration takes effect on restart.
+The configuration takes effect immediately.
