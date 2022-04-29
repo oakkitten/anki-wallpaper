@@ -1,5 +1,6 @@
 import os
 import re
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 import aqt
@@ -34,6 +35,23 @@ tag_to_dialog_class_name = {
 
 def is_dark_mode():
     return aqt.theme.theme_manager.night_mode
+
+
+def read_config():
+    return aqt.mw.addonManager.getConfig(__name__)
+
+def save_config(data):
+    aqt.mw.addonManager.writeConfig(__name__, data)
+
+@contextmanager
+def editing_config():
+    data = read_config()
+    yield data
+    save_config(data)
+
+
+def run_on_configuration_change(function):
+    aqt.mw.addonManager.setConfigUpdatedAction(__name__, lambda *_: function())
 
 
 ########################################################################################
@@ -137,6 +155,15 @@ class Wallpapers:
         return result
 
 
+def change_folder_with_wallpapers_setting_to_sample_folder():
+    import os.path
+    this_file_folder, _file = os.path.split(__file__)
+    sample_wallpapers_folder = os.path.join(this_file_folder, "sample_wallpapers")
+
+    with editing_config() as data:
+        data[FOLDER_WITH_WALLPAPERS] = sample_wallpapers_folder
+
+
 ########################################################################################
 
 
@@ -175,7 +202,11 @@ class Config:
         self.indexes = Indexes(0, 0)
 
     def load(self):
-        data = aqt.mw.addonManager.getConfig(__name__)
+        data = read_config()
+
+        if data[FOLDER_WITH_WALLPAPERS] == "change_me":
+            change_folder_with_wallpapers_setting_to_sample_folder()
+            data = read_config()
 
         self.is_enabled = IsEnabled.from_data(data)
         self.wallpapers = Wallpapers.from_data(data)
@@ -185,9 +216,8 @@ class Config:
             show_warning_about_wallpaper_folder_config_errors(self.wallpapers.errors)
 
     def next_wallpaper(self):
-        data = aqt.mw.addonManager.getConfig(__name__)
-        data[DARK_WALLPAPER_INDEX if is_dark_mode() else LIGHT_WALLPAPER_INDEX] += 1
-        aqt.mw.addonManager.writeConfig(__name__, data)
+        with editing_config() as data:
+            data[DARK_WALLPAPER_INDEX if is_dark_mode() else LIGHT_WALLPAPER_INDEX] += 1
         self.indexes = Indexes.from_data(data)
 
     @property
@@ -195,7 +225,3 @@ class Config:
         wallpapers = self.wallpapers.dark if is_dark_mode() else self.wallpapers.light
         index = self.indexes.dark if is_dark_mode() else self.indexes.light
         return wallpapers[index % len(wallpapers)] if wallpapers else Wallpaper.missing
-
-
-def run_on_configuration_change(function):
-    aqt.mw.addonManager.setConfigUpdatedAction(__name__, lambda *_: function())

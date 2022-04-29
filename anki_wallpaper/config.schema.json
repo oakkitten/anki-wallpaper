@@ -20,7 +20,7 @@
         "folder_with_wallpapers": {
             "type": "string",
             "title": "Folder with wallpapers",
-            "default": ""
+            "default": "change_me"
         },
         "light_wallpaper_index": {
             "type": "integer",

@@ -11,6 +11,9 @@
 
 # Wallpaper
 
+Note that in order to see the wallpaper while reviewing, 
+you *must* remove the background color from your card CSS. 
+
 Set <setting>&nbsp;`enabled_for`&nbsp;</setting> to a list of windows 
 that will use wallpapers. You can use a combination of: 
 <key>&nbsp;`main_window`&nbsp;</key>, 

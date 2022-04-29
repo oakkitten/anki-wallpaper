@@ -1,6 +1,6 @@
 {
 	"version": 0,
-	"folder_with_wallpapers": "",
+	"folder_with_wallpapers": "change_me",
 	"enabled_for": [
 		"main_window",
 		"add_cards",
