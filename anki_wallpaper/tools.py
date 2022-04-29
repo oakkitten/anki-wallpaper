@@ -1,5 +1,7 @@
 from functools import wraps, partial
 
+import aqt
+
 
 def patch_method(obj, method_name, action):
     original_method = getattr(obj, method_name)
@@ -36,3 +38,10 @@ replace_method = partial(patch_method, action="replace")
 def exception_to_string(exception):
     exception_class = exception.__class__.__name__
     return f"{exception_class}: {exception}"
+
+
+def get_dialog_instance_or_none(name):
+    try:
+        return aqt.dialogs._dialogs[name][1]
+    except KeyError:
+        return None

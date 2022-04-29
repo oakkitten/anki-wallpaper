@@ -7,7 +7,7 @@ import aqt.webview
 from aqt import gui_hooks
 from aqt.qt import Qt, QColor, QAction
 
-from .anki_tools import get_dialog_instance_or_none
+from .tools import get_dialog_instance_or_none
 from .config import Config, on_configuration_changed_run
 from .tools import append_to_method, replace_method, exception_to_string
 
