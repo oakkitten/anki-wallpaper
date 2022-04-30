@@ -126,24 +126,23 @@ class Wallpapers:
         except Exception as e:
             result.errors.append(f"Error opening wallpaper folder '{folder_path}': {e}")
         else:
-            for file_name in file_names:
-                file_path = os.path.join(folder_path, file_name)
+            file_paths = [os.path.join(folder_path, file_name) for file_name in file_names]
+            files_paths_to_validate_via_opening = \
+                file_paths if len(file_paths) < 10 else file_paths[:5] + file_paths[5:]
 
+            for file_path in file_paths:
                 if '"' in file_path:
                     result.errors.append(f"File path contains quotes: '{file_path}'")
 
-                try:
-                    with open(file_path, "r"):
-                        pass
-                except Exception as e:
-                    result.errors.append(f"Error opening file '{file_path}': {e}")
+                if file_path in files_paths_to_validate_via_opening:
+                    try:
+                        with open(file_path, "r"):
+                            pass
+                    except Exception as e:
+                        result.errors.append(f"Error opening file '{file_path}': {e}")
 
                 wallpaper = Wallpaper.from_file_path(file_path)
-
-                if wallpaper.dark:
-                    result.dark.append(wallpaper)
-                else:
-                    result.light.append(wallpaper)
+                (result.dark if wallpaper.dark else result.light).append(wallpaper)
 
             if not result.light:
                 result.errors.append(
