@@ -187,6 +187,7 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
 ########################################################################################
 
 
+# View menu on Anki 2.1.50+, Tools menu if View menu not available
 def setup_next_wallpaper_menu():
     def next_wallpaper():
         config.next_wallpaper()
@@ -196,8 +197,13 @@ def setup_next_wallpaper_menu():
     menu_next_wallpaper.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
     menu_next_wallpaper.triggered.connect(next_wallpaper)  # noqa
 
-    aqt.mw.form.menuTools.addSeparator()
-    aqt.mw.form.menuTools.addAction(menu_next_wallpaper)
+    try:
+        menu = aqt.mw.form.menuqt_accel_view
+    except AttributeError:
+        menu = aqt.mw.form.menuTools
+
+    menu.addSeparator()
+    menu.addAction(menu_next_wallpaper)
 
 
 config = Config()

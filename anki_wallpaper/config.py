@@ -40,14 +40,14 @@ def is_dark_mode():
 def read_config():
     return aqt.mw.addonManager.getConfig(__name__)
 
-def save_config(data):
+def write_config(data):
     aqt.mw.addonManager.writeConfig(__name__, data)
 
 @contextmanager
 def editing_config():
     data = read_config()
     yield data
-    save_config(data)
+    write_config(data)
 
 
 def run_on_configuration_change(function):
