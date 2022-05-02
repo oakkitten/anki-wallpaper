@@ -154,13 +154,24 @@ class Setup:
 
 
 def set_up_test_deck_and_test_model_and_two_notes():
+    marker = "<span style='color: red; background-color: red'>foo</span>"
+
     model_id = create_model(
         model_name="test_model",
         field_names=["field1", "field2"],
         card_descriptions=[
-            CardDescription(name="card_1", front="{{field1}}", back="{{field1}}<br> {{field2}}"),
-            CardDescription(name="card_2", front="{{field2}}", back="{{field2}}<br> {{field1}}")
+            CardDescription(
+                name="card_1",
+                front=marker + " {{field1}}",
+                back="{{field1}}<br> {{field2}}"
+            ),
+            CardDescription(
+                name="card_2",
+                front=marker + " {{field2}}",
+                back="{{field2}}<br> {{field1}}"
+            )
         ],
+        css=""
     )
 
     deck_id = create_deck("test_deck")

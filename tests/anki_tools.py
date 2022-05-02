@@ -147,8 +147,12 @@ class CardDescription:
     back: str
 
 
-def create_model(model_name: str, field_names: Sequence[str],
-                 card_descriptions: Sequence[CardDescription]) -> int:
+def create_model(
+    model_name: str,
+    field_names: Sequence[str],
+    card_descriptions: Sequence[CardDescription],
+    css: str = None,
+) -> int:
     models = get_models()
     model = models.new(model_name)
 
@@ -161,6 +165,9 @@ def create_model(model_name: str, field_names: Sequence[str],
         template["qfmt"] = card_description.front
         template["afmt"] = card_description.back
         models.add_template(model, template)
+
+    if css is not None:
+        model["css"] = css
 
     return models.add(model).id
 

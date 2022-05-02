@@ -61,3 +61,16 @@ def test_edit_current_dialog(setup):
     if anki_version >= (2, 1, 50):
         assert get_color(dialog, 270, 440) == "#eeebe7"  # tags area
     assert get_color(dialog, 5, 490) == "#e5dfd9"  # bottom area
+
+
+def test_previewer(setup):
+    browser = aqt.dialogs.open("Browser", aqt.mw)
+    wait_until(lambda: browser.editor.note is not None)
+
+    browser.onTogglePreview()
+    previewer = browser._previewer
+    set_window_dimensions(previewer, 500, 500)
+    wait_until(lambda: get_color(previewer, 30, 30) == "#ff0000")  # our red marker
+
+    assert get_color(previewer, 5, 5) == "#eeebe7"  # edge
+    assert get_color(previewer, 5, 490) == "#e5dfd9"  # bottom area
