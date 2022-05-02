@@ -34,11 +34,12 @@ def save_screenshot(window: QWidget, image_title: str):
     print(f":: saved image: {image_path}")
 
 
-# if image title is not provided, use the name of the calling method
 @contextmanager
 def screenshot_saved_on_error(window: QWidget, image_title: str = None):
     if image_title is None:
-        image_title = sys._getframe().f_back.f_back.f_code.co_name  # noqa
+        calling_method_name = sys._getframe().f_back.f_back.f_code.co_name  # noqa
+        window_class = window.__class__.__name__
+        image_title = calling_method_name + "_" + window_class
     try:
         yield
     except Exception:
@@ -55,6 +56,7 @@ def set_window_dimensions(window: QWidget, width: int, height: int):
 
 def get_main_window():
     window = aqt.mw
+    window.move(50, 50)
     window.resize(500, 500)
 
     # looking for the gray line below upper links.
@@ -72,6 +74,7 @@ def get_main_window():
 
 def get_add_cards_dialog():
     dialog = aqt.dialogs.open("AddCards", aqt.mw)
+    dialog.move(100, 50)
     dialog.resize(500, 500)
 
     with screenshot_saved_on_error(dialog):
@@ -83,6 +86,7 @@ def get_add_cards_dialog():
 def get_edit_current_dialog():
     move_main_window_to_state("review")
     dialog = aqt.dialogs.open("EditCurrent", aqt.mw)
+    dialog.move(150, 50)
     dialog.resize(500, 500)
 
     with screenshot_saved_on_error(dialog):
@@ -97,6 +101,7 @@ def get_previewer():
 
     browser.onTogglePreview()
     previewer = browser._previewer
+    previewer.move(200, 50)
     previewer.resize(500, 500)
 
     with screenshot_saved_on_error(previewer):
@@ -155,15 +160,11 @@ def test_previewer(setup):
 ########################################################################################
 
 
-@pytest.fixture
-def get_colors(setup):
+@contextmanager
+def all_windows_set_up():
     main_window = get_main_window()
     add_cards_dialog = get_add_cards_dialog()
     edit_current = get_edit_current_dialog()
-
-    main_window.move(100, 100)
-    add_cards_dialog.move(700, 100)
-    edit_current.move(1300, 100)
 
     def get_colors():
         return [
@@ -172,30 +173,36 @@ def get_colors(setup):
             )
         ]
 
-    return get_colors
+    with screenshot_saved_on_error(main_window), \
+         screenshot_saved_on_error(add_cards_dialog), \
+         screenshot_saved_on_error(edit_current):
+        yield get_colors
 
 
-def test_next_wallpaper(setup, get_colors):
-    assert get_colors() == ["#eeebe7"] * 3
 
-    setup.anki_wallpaper.next_wallpaper()
-    wait_until(lambda: get_colors() == ["#ebebeb"] * 3)
+def test_next_wallpaper(setup):
+    with all_windows_set_up() as get_colors:
+        assert get_colors() == ["#eeebe7"] * 3
 
-    setup.anki_wallpaper.next_wallpaper()
-    wait_until(lambda: get_colors() == ["#eeebe7"] * 3)
+        setup.anki_wallpaper.next_wallpaper()
+        wait_until(lambda: get_colors() == ["#ebebeb"] * 3)
+
+        setup.anki_wallpaper.next_wallpaper()
+        wait_until(lambda: get_colors() == ["#eeebe7"] * 3)
 
 
 @pytest.mark.skipif(anki_version < (2, 1, 50), reason="not applicable to Anki < 2.1.50")
-def test_theme_change(setup, get_colors):
+def test_theme_change(setup):
     from aqt.theme import Theme
 
-    assert get_colors() == ["#eeebe7"] * 3
+    with all_windows_set_up() as get_colors:
+        assert get_colors() == ["#eeebe7"] * 3
 
-    aqt.mw.set_theme(Theme.DARK)
-    wait_until(lambda: get_colors() == ["#303030"] * 3)
+        aqt.mw.set_theme(Theme.DARK)
+        wait_until(lambda: get_colors() == ["#303030"] * 3)
 
-    aqt.mw.set_theme(Theme.LIGHT)
-    wait_until(lambda: get_colors() == ["#eeebe7"] * 3)
+        aqt.mw.set_theme(Theme.LIGHT)
+        wait_until(lambda: get_colors() == ["#eeebe7"] * 3)
 
 
 ########################################################################################
