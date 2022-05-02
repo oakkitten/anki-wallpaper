@@ -120,20 +120,29 @@ def test_previewer(setup):
 ########################################################################################
 
 
-def replace_in_config(pattern: str, replacement: str):
+@contextmanager
+def editing_config():
     addon = "anki_wallpaper"
     config = aqt.mw.addonManager.getConfig(addon)
 
     addons_dialog = AddonsDialog(aqt.mw.addonManager)
     config_editor = ConfigEditor(addons_dialog, addon, config)
 
-    text = config_editor.form.editor.toPlainText()
-    changed_text = re.sub(pattern, replacement, text)
-    assert changed_text != text
-    config_editor.form.editor.setPlainText(changed_text)
+    class Editor:
+        @property
+        def text(self):
+            return config_editor.form.editor.toPlainText()
 
-    config_editor.accept()
-    addons_dialog.accept()
+        @text.setter
+        def text(self, new_text):
+            assert new_text != self.text
+            config_editor.form.editor.setPlainText(new_text)
+
+    try:
+        yield Editor()
+    finally:
+        config_editor.accept()
+        addons_dialog.accept()
 
 
 @dataclass
@@ -163,26 +172,30 @@ def method_mocked(*args):
 
 def test_anki_freaks_out_with_invalid_json_schema(setup):
     with method_mocked(aqt.addons, "showInfo") as called:
-        replace_in_config("a", "b")
+        with editing_config() as editor:
+            editor.text = editor.text.replace("a", "b")
         assert called.times == 1
         assert "is a required property" in called.first_argument
 
     with method_mocked(aqt.addons, "showInfo") as called:
-        replace_in_config("edit_current", "edit_kitten")
+        with editing_config() as editor:
+            editor.text = editor.text.replace("edit_current", "edit_kitten")
         assert called.times == 1
         assert "is not one of" in called.first_argument
 
 
 def test_anki_freaks_out_with_inaccessible_folder(setup):
     with method_mocked(setup.anki_wallpaper.configuration, "showWarning") as called:
-        replace_in_config(r'"/[^"]+"', '"/root/"')
+        with editing_config() as editor:
+            editor.text = re.sub(r'"/[^"]+"', '"/root/"', editor.text)
         assert called.times == 1
         assert "Permission denied" in called.text_argument
 
 
 def test_anki_freaks_out_with_not_existing_folder(setup):
     with method_mocked(setup.anki_wallpaper.configuration, "showWarning") as called:
-        replace_in_config(r'"/[^"]+"', '"/owo whats this/"')
+        with editing_config() as editor:
+            editor.text = re.sub(r'"/[^"]+"', '"/owo whats this/"', editor.text)
         assert called.times == 1
         assert "No such file" in called.text_argument
 
@@ -194,6 +207,7 @@ def test_anki_freaks_out_with_wanted_files_missing(setup):
     os.remove(os.path.join(wallpaper_folder, "puppy.dark.png"))
 
     with method_mocked(setup.anki_wallpaper.configuration, "showWarning") as called:
-        replace_in_config(': 0', ': 1')
+        with editing_config() as editor:
+            editor.text = editor.text.replace(': 0,', ': 1,')
         assert called.times == 1
         assert "does not contain dark wallpapers" in called.text_argument
