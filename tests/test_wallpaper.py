@@ -1,6 +1,7 @@
 import aqt
 from aqt.qt import QColor, QWindow, QWidget, QDialog
 
+from tests.anki_tools import move_main_window_to_state
 from tests.conftest import wait_until, wait
 
 
@@ -35,4 +36,16 @@ def test_add_cards_dialog(setup):
     assert get_color(dialog, 270, 80) == "#eeebe7"  # buttons area
     assert get_color(dialog, 270, 270) == "#eeebe7"  # main area
     assert get_color(dialog, 270, 430) == "#eeebe7"  # tags area
+    assert get_color(dialog, 5, 490) == "#e5dfd9"  # bottom area
+
+
+def test_edit_current_dialog(setup):
+    move_main_window_to_state("review")
+    dialog = aqt.dialogs.open("EditCurrent", aqt.mw)
+    set_window_dimensions(dialog, 500, 500)
+    wait_until(lambda: get_color(dialog, 330, 130) == "#ffffff")  # field1
+    assert get_color(dialog, 5, 5) == "#eeebe7"  # edge
+    assert get_color(dialog, 270, 60) == "#eeebe7"  # buttons area
+    assert get_color(dialog, 270, 250) == "#eeebe7"  # main area
+    assert get_color(dialog, 270, 440) == "#eeebe7"  # tags area
     assert get_color(dialog, 5, 490) == "#e5dfd9"  # bottom area
