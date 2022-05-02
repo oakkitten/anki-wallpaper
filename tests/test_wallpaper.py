@@ -11,8 +11,7 @@ def get_color(window: QWindow, x: int, y: int) -> str:
 
 
 def set_window_dimensions(window: QWidget, width: int, height: int):
-    window.setFixedWidth(width)
-    window.setFixedHeight(height)
+    window.resize(width, height)
 
 
 ########################################################################################
