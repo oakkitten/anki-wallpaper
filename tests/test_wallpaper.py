@@ -199,15 +199,10 @@ def test_anki_freaks_out_with_not_existing_folder(setup):
         assert called.times == 1
         assert "No such file" in called.text_argument
 
-def test_anki_freaks_out_with_wanted_files_missing(setup):
-    from anki_wallpaper.configuration import read_config, FOLDER_WITH_WALLPAPERS
 
-    wallpaper_folder = read_config()[FOLDER_WITH_WALLPAPERS]
-    os.remove(os.path.join(wallpaper_folder, "kitten.dark.png"))
-    os.remove(os.path.join(wallpaper_folder, "puppy.dark.png"))
-
+def test_anki_freaks_out_with_wanted_files_missing(setup, tmpdir):
     with method_mocked(setup.anki_wallpaper.configuration, "showWarning") as called:
         with editing_config() as editor:
-            editor.text = editor.text.replace(': 0,', ': 1,')
+            editor.text = re.sub(r'"/[^"]+"', f'"{tmpdir.strpath}"', editor.text)
         assert called.times == 1
         assert "does not contain dark wallpapers" in called.text_argument

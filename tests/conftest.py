@@ -115,6 +115,11 @@ def empty_anki_session_started():
                 yield session
 
 
+def reset_addon_configuration(addon_name: str):
+    default_config = aqt.mw.addonManager.addonConfigDefaults(addon_name)
+    aqt.mw.addonManager.writeConfig(addon_name, default_config)
+
+
 @contextmanager
 def profile_created_and_loaded(session):
     with temporary_user(session.base, "test_user", "en_US"):
@@ -188,6 +193,8 @@ def set_up_test_deck_and_test_model_and_two_notes():
     get_decks().set_current(DeckId(deck_id))
 
     import anki_wallpaper
+    reset_addon_configuration("anki_wallpaper")
+    anki_wallpaper.config.load()
 
     return Setup(
         anki_wallpaper=anki_wallpaper,
@@ -299,6 +306,7 @@ def setup(session_with_profile_loaded):
           and two cards per note
         * One notes with two valid cards each using the above deck and model
       * Any dialogs, if open, are safely closed on exit
+      * Configuration is reset to default
     """
     yield set_up_test_deck_and_test_model_and_two_notes()
     close_all_dialogs_and_wait_for_them_to_run_closing_callbacks()
