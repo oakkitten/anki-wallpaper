@@ -185,6 +185,19 @@ def test_next_wallpaper(setup, get_colors):
     wait_until(lambda: get_colors() == ["#eeebe7"] * 3)
 
 
+@pytest.mark.skipif(anki_version < (2, 1, 50), reason="not applicable to Anki < 2.1.50")
+def test_theme_change(setup, get_colors):
+    from aqt.theme import Theme
+
+    assert get_colors() == ["#eeebe7"] * 3
+
+    aqt.mw.set_theme(Theme.DARK)
+    wait_until(lambda: get_colors() == ["#303030"] * 3)
+
+    aqt.mw.set_theme(Theme.LIGHT)
+    wait_until(lambda: get_colors() == ["#eeebe7"] * 3)
+
+
 ########################################################################################
 
 
