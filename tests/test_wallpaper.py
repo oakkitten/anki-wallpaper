@@ -1,9 +1,11 @@
 from contextlib import contextmanager
+from dataclasses import dataclass
 from unittest.mock import MagicMock
 
 import aqt
 import os
 
+from _pytest.monkeypatch import MonkeyPatch
 from aqt.addons import AddonsDialog, ConfigEditor
 from aqt.qt import QColor, QWidget, QPixmap
 
@@ -117,7 +119,6 @@ def test_previewer(setup):
 ########################################################################################
 
 
-# see aqt.addons.AddonsDialog.onConfig
 def replace_in_config(needle: str, replacement: str):
     addon = "anki_wallpaper"
     config = aqt.mw.addonManager.getConfig(addon)
@@ -126,6 +127,7 @@ def replace_in_config(needle: str, replacement: str):
     config_editor = ConfigEditor(addons_dialog, addon, config)
 
     text = config_editor.form.editor.toPlainText()
+    assert needle in text
     changed_text = text.replace(needle, replacement)
     config_editor.form.editor.setPlainText(changed_text)
 
@@ -133,11 +135,34 @@ def replace_in_config(needle: str, replacement: str):
     addons_dialog.accept()
 
 
-def test_anki_freaks_out_with_invalid_json_schema(setup, monkeypatch):
-    import aqt.addons
-    show_info = MagicMock()
-    monkeypatch.setattr(aqt.addons, "showInfo", show_info)
+@dataclass
+class Called:
+    mock: MagicMock
 
-    replace_in_config("a", "b")
-    assert show_info.call_count == 1
-    assert "is a required property" in show_info.call_args_list[0].args[0]
+    @property
+    def times(self):
+        return self.mock.call_count
+
+    @property
+    def first_argument(self):
+        return self.mock.call_args_list[0].args[0]
+
+
+@contextmanager
+def method_mocked(*args):
+    with MonkeyPatch().context() as context:
+        mock = MagicMock()
+        context.setattr(*args, mock)
+        yield Called(mock)
+
+
+def test_anki_freaks_out_with_invalid_json_schema(setup):
+    with method_mocked(aqt.addons, "showInfo") as called:
+        replace_in_config("a", "b")
+        assert called.times == 1
+        assert "is a required property" in called.first_argument
+
+    with method_mocked(aqt.addons, "showInfo") as called:
+        replace_in_config("edit_current", "edit_kitten")
+        assert called.times == 1
+        assert "is not one of" in called.first_argument
