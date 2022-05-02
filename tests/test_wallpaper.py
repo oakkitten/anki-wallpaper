@@ -1,3 +1,4 @@
+import re
 from contextlib import contextmanager
 from dataclasses import dataclass
 from unittest.mock import MagicMock
@@ -119,7 +120,7 @@ def test_previewer(setup):
 ########################################################################################
 
 
-def replace_in_config(needle: str, replacement: str):
+def replace_in_config(pattern: str, replacement: str):
     addon = "anki_wallpaper"
     config = aqt.mw.addonManager.getConfig(addon)
 
@@ -127,8 +128,8 @@ def replace_in_config(needle: str, replacement: str):
     config_editor = ConfigEditor(addons_dialog, addon, config)
 
     text = config_editor.form.editor.toPlainText()
-    assert needle in text
-    changed_text = text.replace(needle, replacement)
+    changed_text = re.sub(pattern, replacement, text)
+    assert changed_text != text
     config_editor.form.editor.setPlainText(changed_text)
 
     config_editor.accept()
@@ -146,6 +147,10 @@ class Called:
     @property
     def first_argument(self):
         return self.mock.call_args_list[0].args[0]
+
+    @property
+    def text_argument(self):
+        return self.mock.call_args_list[0].kwargs["text"]
 
 
 @contextmanager
@@ -166,3 +171,17 @@ def test_anki_freaks_out_with_invalid_json_schema(setup):
         replace_in_config("edit_current", "edit_kitten")
         assert called.times == 1
         assert "is not one of" in called.first_argument
+
+
+def test_anki_freaks_out_with_inaccessible_folder(setup):
+    with method_mocked(setup.anki_wallpaper.configuration, "showWarning") as called:
+        replace_in_config(r'"/[^"]+"', '"/root/"')
+        assert called.times == 1
+        assert "Permission denied" in called.text_argument
+
+
+def test_anki_freaks_out_with_not_existing_folder(setup):
+    with method_mocked(setup.anki_wallpaper.configuration, "showWarning") as called:
+        replace_in_config(r'"/[^"]+"', '"/owo whats this/"')
+        assert called.times == 1
+        assert "No such file" in called.text_argument

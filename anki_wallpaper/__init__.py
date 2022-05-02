@@ -7,7 +7,7 @@ import aqt.webview
 from aqt import gui_hooks
 from aqt.qt import Qt, QColor, QAction
 
-from .config import Config, run_on_configuration_change
+from .configuration import Config, run_on_configuration_change
 from .tools import append_to_method, replace_method, prepend_to_method
 from .tools import get_dialog_instance_or_none
 
