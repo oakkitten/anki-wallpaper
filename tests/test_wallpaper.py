@@ -6,13 +6,13 @@ from dataclasses import dataclass
 from unittest.mock import MagicMock
 
 import aqt
+import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from aqt.addons import AddonsDialog, ConfigEditor
 from aqt.qt import QColor, QWidget, QPixmap
 
 from tests.anki_tools import move_main_window_to_state, anki_version
-from tests.conftest import wait_until
-
+from tests.conftest import wait_until, get_dialog_instance, wait
 
 image_save_folder = os.getcwd()
 
@@ -150,6 +150,39 @@ def test_previewer(setup):
     with screenshot_saved_on_error(previewer):
         assert get_color(previewer, 5, 5) == "#eeebe7"  # edge
         assert get_color(previewer, 5, 490) == "#e5dfd9"  # bottom area
+
+
+########################################################################################
+
+
+@pytest.fixture
+def get_colors(setup):
+    main_window = get_main_window()
+    add_cards_dialog = get_add_cards_dialog()
+    edit_current = get_edit_current_dialog()
+
+    main_window.move(100, 100)
+    add_cards_dialog.move(700, 100)
+    edit_current.move(1300, 100)
+
+    def get_colors():
+        return [
+            get_color(window, 5, 5) for window in (
+                main_window, add_cards_dialog, edit_current
+            )
+        ]
+
+    return get_colors
+
+
+def test_next_wallpaper(setup, get_colors):
+    assert get_colors() == ["#eeebe7"] * 3
+
+    setup.anki_wallpaper.next_wallpaper()
+    wait_until(lambda: get_colors() == ["#ebebeb"] * 3)
+
+    setup.anki_wallpaper.next_wallpaper()
+    wait_until(lambda: get_colors() == ["#eeebe7"] * 3)
 
 
 ########################################################################################

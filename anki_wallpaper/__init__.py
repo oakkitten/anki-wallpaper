@@ -187,12 +187,12 @@ def webview_will_set_content(web_content: aqt.webview.WebContent, context):
 ########################################################################################
 
 
+def next_wallpaper():
+    config.next_wallpaper()
+    set_wallpapers_now()
+
 # View menu on Anki 2.1.50+, Tools menu if View menu not available
 def setup_next_wallpaper_menu():
-    def next_wallpaper():
-        config.next_wallpaper()
-        set_wallpapers_now()
-
     menu_next_wallpaper = QAction("Next wallpaper", aqt.mw, shortcut="Ctrl+Shift+W")  # noqa
     menu_next_wallpaper.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
     menu_next_wallpaper.triggered.connect(next_wallpaper)  # noqa
