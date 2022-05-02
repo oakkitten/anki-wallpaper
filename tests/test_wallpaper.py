@@ -1,17 +1,17 @@
+import os
+import sys
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass
 from unittest.mock import MagicMock
 
 import aqt
-import os
-
 from _pytest.monkeypatch import MonkeyPatch
 from aqt.addons import AddonsDialog, ConfigEditor
 from aqt.qt import QColor, QWidget, QPixmap
 
 from tests.anki_tools import move_main_window_to_state, anki_version
-from tests.conftest import wait_until, wait
+from tests.conftest import wait_until
 
 
 image_save_folder = os.getcwd()
@@ -27,19 +27,22 @@ def get_color(obj: "QWidget | QPixmap", x: int, y: int) -> str:
     return QColor(obj.pixel(x, y)).name()
 
 
-def save_screenshot(window: QWidget, image_name: str):
+def save_screenshot(window: QWidget, image_title: str):
     image = get_screenshot(window)
-    image_path = os.path.join(image_save_folder, image_name)
+    image_path = os.path.join(image_save_folder, image_title + ".png")
     image.save(image_path)
     print(f":: saved image: {image_path}")
 
 
+# if image title is not provided, use the name of the calling method
 @contextmanager
-def screenshot_saved_on_error(window: QWidget, image_name: str):
+def screenshot_saved_on_error(window: QWidget, image_title: str = None):
+    if image_title is None:
+        image_title = sys._getframe().f_back.f_back.f_code.co_name  # noqa
     try:
         yield
     except Exception:
-        save_screenshot(window, image_name)
+        save_screenshot(window, image_title)
         raise
 
 
@@ -47,12 +50,12 @@ def set_window_dimensions(window: QWidget, width: int, height: int):
     window.resize(width, height)
 
 
-########################################################################################
+################################### get windows and wait for them to become fully loaded
 
 
-def test_main_window(setup):
+def get_main_window():
     window = aqt.mw
-    set_window_dimensions(window, 500, 500)
+    window.resize(500, 500)
 
     # looking for the gray line below upper links.
     # it might have different colors, so just see if there's anything at all
@@ -61,9 +64,54 @@ def test_main_window(setup):
         different_colors = {get_color(screenshot, 5, 40 + x) for x in range(16)}
         return len(different_colors) > 1
 
-    with screenshot_saved_on_error(window, "test_main_window.png"):
+    with screenshot_saved_on_error(window):
         wait_until(main_window_ready)
 
+    return window
+
+
+def get_add_cards_dialog():
+    dialog = aqt.dialogs.open("AddCards", aqt.mw)
+    dialog.resize(500, 500)
+
+    with screenshot_saved_on_error(dialog):
+        wait_until(lambda: get_color(dialog, 330, 230) == "#ffffff")  # field2
+
+    return dialog
+
+
+def get_edit_current_dialog():
+    move_main_window_to_state("review")
+    dialog = aqt.dialogs.open("EditCurrent", aqt.mw)
+    dialog.resize(500, 500)
+
+    with screenshot_saved_on_error(dialog):
+        wait_until(lambda: get_color(dialog, 330, 200) == "#ffffff")  # field2
+
+    return dialog
+
+
+def get_previewer():
+    browser = aqt.dialogs.open("Browser", aqt.mw)
+    wait_until(lambda: browser.editor.note is not None)
+
+    browser.onTogglePreview()
+    previewer = browser._previewer
+    previewer.resize(500, 500)
+
+    with screenshot_saved_on_error(previewer):
+        wait_until(lambda: get_color(previewer, 30, 30) == "#ff0000")  # our red marker
+
+    return previewer
+
+
+########################################################################################
+
+
+def test_main_window(setup):
+    window = get_main_window()
+
+    with screenshot_saved_on_error(window):
         assert get_color(window, 5, 5) == "#eeebe7"  # menu
         assert get_color(window, 5, 40) == "#eeebe7"  # links
         assert get_color(window, 5, 280) == "#eeebe7"  # main area
@@ -73,11 +121,9 @@ def test_main_window(setup):
 # on Anki 2.1.49 tag area is an input field and has white background
 # on Anki 2.1.49+ it's a special thing with tags and has transparent background
 def test_add_cards_dialog(setup):
-    dialog = aqt.dialogs.open("AddCards", aqt.mw)
-    set_window_dimensions(dialog, 500, 500)
+    dialog = get_add_cards_dialog()
 
-    with screenshot_saved_on_error(dialog, "test_add_cards_dialog.png"):
-        wait_until(lambda: get_color(dialog, 330, 230) == "#ffffff")  # field2
+    with screenshot_saved_on_error(dialog):
         assert get_color(dialog, 5, 5) == "#eeebe7"  # edge
         assert get_color(dialog, 270, 80) == "#eeebe7"  # buttons area
         assert get_color(dialog, 270, 270) == "#eeebe7"  # main area
@@ -87,13 +133,9 @@ def test_add_cards_dialog(setup):
 
 
 def test_edit_current_dialog(setup):
-    move_main_window_to_state("review")
-    dialog = aqt.dialogs.open("EditCurrent", aqt.mw)
-    set_window_dimensions(dialog, 500, 500)
+    dialog = get_edit_current_dialog()
 
-    with screenshot_saved_on_error(dialog, "test_edit_current_dialog.png"):
-        wait_until(lambda: get_color(dialog, 330, 200) == "#ffffff")  # field2
-
+    with screenshot_saved_on_error(dialog):
         assert get_color(dialog, 5, 5) == "#eeebe7"  # edge
         assert get_color(dialog, 270, 60) == "#eeebe7"  # buttons area
         assert get_color(dialog, 270, 270) == "#eeebe7"  # main area
@@ -103,16 +145,9 @@ def test_edit_current_dialog(setup):
 
 
 def test_previewer(setup):
-    browser = aqt.dialogs.open("Browser", aqt.mw)
-    wait_until(lambda: browser.editor.note is not None)
+    previewer = get_previewer()
 
-    browser.onTogglePreview()
-    previewer = browser._previewer
-    set_window_dimensions(previewer, 500, 500)
-
-    with screenshot_saved_on_error(previewer, "test_previewer.png"):
-        wait_until(lambda: get_color(previewer, 30, 30) == "#ff0000")  # our red marker
-
+    with screenshot_saved_on_error(previewer):
         assert get_color(previewer, 5, 5) == "#eeebe7"  # edge
         assert get_color(previewer, 5, 490) == "#e5dfd9"  # bottom area
 
