@@ -1,8 +1,10 @@
 from contextlib import contextmanager
+from unittest.mock import MagicMock
 
 import aqt
 import os
 
+from aqt.addons import AddonsDialog, ConfigEditor
 from aqt.qt import QColor, QWidget, QPixmap
 
 from tests.anki_tools import move_main_window_to_state, anki_version
@@ -110,3 +112,32 @@ def test_previewer(setup):
 
         assert get_color(previewer, 5, 5) == "#eeebe7"  # edge
         assert get_color(previewer, 5, 490) == "#e5dfd9"  # bottom area
+
+
+########################################################################################
+
+
+# see aqt.addons.AddonsDialog.onConfig
+def replace_in_config(needle: str, replacement: str):
+    addon = "anki_wallpaper"
+    config = aqt.mw.addonManager.getConfig(addon)
+
+    addons_dialog = AddonsDialog(aqt.mw.addonManager)
+    config_editor = ConfigEditor(addons_dialog, addon, config)
+
+    text = config_editor.form.editor.toPlainText()
+    changed_text = text.replace(needle, replacement)
+    config_editor.form.editor.setPlainText(changed_text)
+
+    config_editor.accept()
+    addons_dialog.accept()
+
+
+def test_anki_freaks_out_with_invalid_json_schema(setup, monkeypatch):
+    import aqt.addons
+    show_info = MagicMock()
+    monkeypatch.setattr(aqt.addons, "showInfo", show_info)
+
+    replace_in_config("a", "b")
+    assert show_info.call_count == 1
+    assert "is a required property" in show_info.call_args_list[0].args[0]

@@ -2,6 +2,13 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
     "title": "Wallpaper configuration",
+    "required": [
+        "enabled_for",
+        "folder_with_wallpapers",
+        "light_wallpaper_index",
+        "dark_wallpaper_index",
+        "version"
+    ],
     "properties": {
         "enabled_for": {
             "type": "array",
@@ -31,6 +38,12 @@
             "type": "integer",
             "title": "Dark wallpaper index",
             "default": 0
+        },
+        "version": {
+            "type": "integer",
+            "title": "Configuration version",
+            "default": 0
         }
+
     }
 }
