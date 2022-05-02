@@ -1,0 +1,8 @@
+anki_wallpaper/meta.json
+
+.idea/
+
+.tox/
+htmlcov/
+.coverage
+.coverage.*
