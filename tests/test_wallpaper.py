@@ -1,7 +1,7 @@
 import aqt
 from aqt.qt import QColor, QWindow, QMainWindow
 
-from tests.conftest import wait
+from tests.conftest import wait_until
 
 
 def get_color(window: QWindow, x: int, y: int) -> str:
@@ -14,10 +14,13 @@ def set_main_window_dimensions(window: QMainWindow, width: int, height: int):
     window.setFixedHeight(height)
 
 
+########################################################################################
+
+
 def test_main_window(setup):
-    window = aqt.mw
-    set_main_window_dimensions(window, 500, 500)
-    wait(5)
-    assert get_color(window, 5, 1) == "#eeebe7"
-    assert get_color(window, 1, 40) == "#eeebe7"
-    assert get_color(window, 1, 490) == "#e5dfd9"
+    set_main_window_dimensions(aqt.mw, 500, 500)
+    wait_until(lambda: get_color(aqt.mw, 5, 47) == "#aaaaaa")  # gray line below upper links
+    assert get_color(aqt.mw, 5, 5) == "#eeebe7"  # menu
+    assert get_color(aqt.mw, 5, 40) == "#eeebe7"  # links
+    assert get_color(aqt.mw, 5, 280) == "#eeebe7"  # main area
+    assert get_color(aqt.mw, 5, 490) == "#e5dfd9"  # bottom area
