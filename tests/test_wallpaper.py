@@ -11,8 +11,7 @@ from aqt.addons import AddonsDialog, ConfigEditor
 from aqt.qt import QColor, QWidget, QImage
 
 from tests.anki_tools import move_main_window_to_state, anki_version
-from tests.conftest import wait_until
-
+from tests.conftest import wait_until, wait
 
 image_save_folder = os.getcwd()
 
@@ -233,7 +232,9 @@ def editing_config():
         yield Editor()
     finally:
         config_editor.accept()
+        config_editor.reject()
         addons_dialog.accept()
+        wait(0)
 
 
 @contextmanager
