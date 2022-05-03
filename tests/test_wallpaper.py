@@ -9,19 +9,20 @@ import aqt
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from aqt.addons import AddonsDialog, ConfigEditor
-from aqt.qt import QColor, QWidget, QPixmap
+from aqt.qt import QColor, QWidget, QImage
 
 from tests.anki_tools import move_main_window_to_state, anki_version
 from tests.conftest import wait_until, get_dialog_instance, wait
 
+
 image_save_folder = os.getcwd()
 
 
-def get_screenshot(window: QWidget) -> QPixmap:
-    return window.screen().grabWindow(window.winId()).toImage()
+def get_screenshot(window: QWidget) -> QImage:
+    return window.grab().toImage()
 
 
-def get_color(obj: "QWidget | QPixmap", x: int, y: int) -> str:
+def get_color(obj: "QWidget | QImage", x: int, y: int) -> str:
     if isinstance(obj, QWidget):
         obj = get_screenshot(obj)
     return QColor(obj.pixel(x, y)).name()
@@ -56,7 +57,6 @@ def set_window_dimensions(window: QWidget, width: int, height: int):
 
 def get_main_window():
     window = aqt.mw
-    window.move(50, 50)
     window.resize(500, 500)
 
     # looking for the gray line below upper links.
@@ -74,7 +74,6 @@ def get_main_window():
 
 def get_add_cards_dialog():
     dialog = aqt.dialogs.open("AddCards", aqt.mw)
-    dialog.move(100, 50)
     dialog.resize(500, 500)
 
     with screenshot_saved_on_error(dialog):
@@ -86,7 +85,6 @@ def get_add_cards_dialog():
 def get_edit_current_dialog():
     move_main_window_to_state("review")
     dialog = aqt.dialogs.open("EditCurrent", aqt.mw)
-    dialog.move(150, 50)
     dialog.resize(500, 500)
 
     with screenshot_saved_on_error(dialog):
@@ -101,7 +99,6 @@ def get_previewer():
 
     browser.onTogglePreview()
     previewer = browser._previewer
-    previewer.move(200, 50)
     previewer.resize(500, 500)
 
     with screenshot_saved_on_error(previewer):
