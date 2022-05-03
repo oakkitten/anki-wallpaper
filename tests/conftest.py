@@ -228,33 +228,55 @@ def pytest_report_header(config):
                "are cleaned up between tests"
 
 
-@pytest.fixture(autouse=True)
-def run_background_tasks_on_main_thread(request, monkeypatch):  # noqa
-    """
-    Makes background operations such as card deletion execute on main thread
-    and execute the callback immediately
-    """
-    def run_in_background(task, on_done=None, kwargs=None):
-        future = concurrent.futures.Future()
+# this is commented because it somehow prevents the test `test_theme_change`
+# from failing with the following error:
+#
+# Traceback (most recent call last):
+#   File "/.../anki-wallpaper/tests/test_wallpaper.py", line 201, in test_theme_change
+#     aqt.mw.set_theme(Theme.DARK)
+#   File "/.../anki-connect/.tox/py310-anki50qt5/lib/python3.10/site-packages/aqt/main.py", line 1024, in set_theme
+#     self.setupStyle()
+#   File "/.../anki-connect/.tox/py310-anki50qt5/lib/python3.10/site-packages/aqt/main.py", line 1007, in setupStyle
+#     theme_manager.apply_style()
+#   File "/.../anki-connect/.tox/py310-anki50qt5/lib/python3.10/site-packages/aqt/theme.py", line 185, in apply_style
+#     gui_hooks.theme_did_change()
+#   File "/.../anki-connect/.tox/py310-anki50qt5/lib/python3.10/site-packages/aqt/hooks_gen.py", line 3946, in __call__
+#     hook()
+#   File "/.../anki-connect/.tox/py310-anki50qt5/lib/python3.10/site-packages/aqt/webview.py", line 702, in on_theme_did_change
+#     self.get_window_bg_color(theme_manager.night_mode)
+#   File "/tmp/anki_base_gmzwe0pe/addons21/anki_wallpaper/tools.py", line 16, in patched_method
+#     return function(*args, **kwargs)
+#   File "/tmp/anki_base_gmzwe0pe/addons21/anki_wallpaper/__init__.py", line 109, in webview_get_window_bg_color
+#     transparent = getattr(self, "_transparent", False) or self.title in [
+# RuntimeError: wrapped C/C++ object of type AnkiWebView has been deleted
 
-        try:
-            future.set_result(task(**kwargs if kwargs is not None else {}))
-        except BaseException as e:
-            future.set_exception(e)
-
-        if on_done is not None:
-            on_done(future)
-
-    monkeypatch.setattr(aqt.mw.taskman, "run_in_background", run_in_background)
-
-
-# don't use run_background_tasks_on_main_thread for tests that don't run Anki
-def pytest_generate_tests(metafunc):
-    if (
-        run_background_tasks_on_main_thread.__name__ in metafunc.fixturenames
-        and session_scope_empty_session.__name__ not in metafunc.fixturenames
-    ):
-        metafunc.fixturenames.remove(run_background_tasks_on_main_thread.__name__)
+# @pytest.fixture(autouse=True)
+# def run_background_tasks_on_main_thread(request, monkeypatch):  # noqa
+#     """
+#     Makes background operations such as card deletion execute on main thread
+#     and execute the callback immediately
+#     """
+#     def run_in_background(task, on_done=None, kwargs=None):
+#         future = concurrent.futures.Future()
+# 
+#         try:
+#             future.set_result(task(**kwargs if kwargs is not None else {}))
+#         except BaseException as e:
+#             future.set_exception(e)
+# 
+#         if on_done is not None:
+#             on_done(future)
+# 
+#     monkeypatch.setattr(aqt.mw.taskman, "run_in_background", run_in_background)
+# 
+# 
+# # don't use run_background_tasks_on_main_thread for tests that don't run Anki
+# def pytest_generate_tests(metafunc):
+#     if (
+#         run_background_tasks_on_main_thread.__name__ in metafunc.fixturenames
+#         and session_scope_empty_session.__name__ not in metafunc.fixturenames
+#     ):
+#         metafunc.fixturenames.remove(run_background_tasks_on_main_thread.__name__)
 
 
 @pytest.fixture(scope="session")
