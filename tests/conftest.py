@@ -1,4 +1,3 @@
-import concurrent.futures
 import os
 import time
 from contextlib import contextmanager
@@ -15,7 +14,6 @@ from waitress import wasyncore
 from tests.anki_tools import (
     CardDescription,
     anki_version,
-    get_collection,
     get_decks,
     get_models,
     get_all_deck_ids,
@@ -53,10 +51,6 @@ def wait_until(booleanish_function, at_most_seconds=10):
 def close_all_dialogs_and_wait_for_them_to_run_closing_callbacks():
     aqt.dialogs.closeAll(onsuccess=lambda: None)
     wait_until(aqt.dialogs.allClosed)
-
-
-def get_dialog_instance(name):
-    return aqt.dialogs._dialogs[name][1]    # noqa
 
 
 # waitress is a WSGI server that Anki starts to serve css etc to its web views.
@@ -151,44 +145,29 @@ def current_decks_and_models_etc_preserved():
 @dataclass
 class Setup:
     anki_wallpaper: "anki_wallpaper"
-    model_id: int
-    deck_id: int
-    note_id: int
-    card1_id: int
-    card2_id: int
 
 
-def set_up_test_deck_and_test_model_and_two_notes():
-    marker = "<span style='color: red; background-color: red'>foo</span>"
-
-    model_id = create_model(
+def set_up_test_deck_and_test_model_and_one_note():
+    create_model(
         model_name="test_model",
         field_names=["field1", "field2"],
         card_descriptions=[
             CardDescription(
-                name="card_1",
-                front=marker + " {{field1}}",
-                back="{{field1}}<br> {{field2}}"
-            ),
-            CardDescription(
-                name="card_2",
-                front=marker + " {{field2}}",
-                back="{{field2}}<br> {{field1}}"
-            )
+                name="card1",
+                front="<red>{{field1}}</red>",
+                back="{{field2}}")
         ],
-        css=""
+        css="red {color: red; background-color: red;}"
     )
 
     deck_id = create_deck("test_deck")
 
-    note_id = add_note(
+    add_note(
         model_name="test_model",
         deck_name="test_deck",
         fields={"field1": "note1 field1", "field2": "note1 field2"},
         tags=["tag1"],
     )
-
-    card_ids = get_collection().find_cards(query=f"nid:{note_id}")
 
     get_decks().set_current(DeckId(deck_id))
 
@@ -196,14 +175,7 @@ def set_up_test_deck_and_test_model_and_two_notes():
     reset_addon_configuration("anki_wallpaper")
     anki_wallpaper.config.load()
 
-    return Setup(
-        anki_wallpaper=anki_wallpaper,
-        model_id=model_id,
-        deck_id=deck_id,
-        note_id=note_id,
-        card1_id=card_ids[0],
-        card2_id=card_ids[1],
-    )
+    return Setup(anki_wallpaper=anki_wallpaper)
 
 
 #############################################################################
@@ -330,6 +302,6 @@ def setup(session_with_profile_loaded):
       * Any dialogs, if open, are safely closed on exit
       * Configuration is reset to default
     """
-    yield set_up_test_deck_and_test_model_and_two_notes()
+    yield set_up_test_deck_and_test_model_and_one_note()
     close_all_dialogs_and_wait_for_them_to_run_closing_callbacks()
     wait(0)
