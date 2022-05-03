@@ -1,5 +1,6 @@
 import time
 from contextlib import contextmanager
+from pathlib import Path
 
 import anki.collection
 import aqt.operations.note
@@ -55,6 +56,14 @@ addons_to_copy_into_anki_addons_folders = []
 
 
 def add_addon_to_copy_into_anki_addons_folder(addon_name: str, addon_folder: str):
+    addon_folder = Path(addon_folder).resolve()
+
+    if not addon_folder.exists() or not addon_folder.is_dir():
+        raise Exception(f"Addon folder {addon_folder} is not a directory")
+
+    if (addon_folder / "meta.json").exists():
+        raise Exception(f"Addon folder {addon_folder} contains meta.json")
+
     addons_to_copy_into_anki_addons_folders.append((addon_name, addon_folder))
 
 
