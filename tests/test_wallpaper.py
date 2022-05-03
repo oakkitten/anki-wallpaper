@@ -1,9 +1,7 @@
 import os
-import sys
 import re
-from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass
-from typing import Callable
+import sys
+from contextlib import contextmanager
 from unittest.mock import MagicMock
 
 import aqt
@@ -13,7 +11,7 @@ from aqt.addons import AddonsDialog, ConfigEditor
 from aqt.qt import QColor, QWidget, QImage
 
 from tests.anki_tools import move_main_window_to_state, anki_version
-from tests.conftest import wait_until, get_dialog_instance, wait
+from tests.conftest import wait_until
 
 
 image_save_folder = os.getcwd()
@@ -108,7 +106,7 @@ def get_previewer():
     return previewer
 
 
-########################################################################################
+######################################################################## test wallpapers
 
 
 # sample wallpaper colors: puppy, kitten, pyppy.dark, kitten.dark
@@ -164,7 +162,7 @@ def test_previewer(setup):
         assert get_color(previewer, 5, 490) in light_colors  # bottom area
 
 
-########################################################################################
+########################################################################### test changes
 
 
 @contextmanager
@@ -210,7 +208,7 @@ def test_theme_change(setup):
         assert {*get_colors()} <= {*light_colors}
 
 
-########################################################################################
+############################################################################ test config
 
 
 @contextmanager
@@ -228,7 +226,7 @@ def editing_config():
 
         @text.setter
         def text(self, new_text):
-            assert new_text != self.text
+            assert new_text != self.text  # unchanged text won't trigger the hooks
             config_editor.form.editor.setPlainText(new_text)
 
     try:
@@ -238,64 +236,53 @@ def editing_config():
         addons_dialog.accept()
 
 
-@dataclass
-class Called:
-    mock: MagicMock
-
-    @property
-    def times(self):
-        return self.mock.call_count
-
-    @property
-    def first_argument(self):
-        return self.mock.call_args_list[0].args[0]
-
-    @property
-    def text_argument(self):
-        return self.mock.call_args_list[0].kwargs["text"]
-
-
 @contextmanager
-def method_mocked(*args):
+def show_info_mocked(obj, name):
     with MonkeyPatch().context() as context:
         mock = MagicMock()
-        context.setattr(*args, mock)
-        yield Called(mock)
+        context.setattr(obj, name, mock)
+
+        class Called:
+            @property
+            def text(self):
+                assert mock.call_count == 1
+
+                try:
+                    return mock.call_args.args[0]
+                except IndexError:
+                    return mock.call_args.kwargs["text"]
+
+        yield Called()
 
 
-def test_anki_freaks_out_with_invalid_json_schema(setup):
-    with method_mocked(aqt.addons, "showInfo") as called:
+def test_config_editor_freaks_out_if_json_does_not_match_schema(setup):
+    with show_info_mocked(aqt.addons, "showInfo") as called:
         with editing_config() as editor:
             editor.text = editor.text.replace("a", "b")
-        assert called.times == 1
-        assert "is a required property" in called.first_argument
+        assert "is a required property" in called.text
 
-    with method_mocked(aqt.addons, "showInfo") as called:
+    with show_info_mocked(aqt.addons, "showInfo") as called:
         with editing_config() as editor:
-            editor.text = editor.text.replace("edit_current", "edit_kitten")
-        assert called.times == 1
-        assert "is not one of" in called.first_argument
+            editor.text = editor.text.replace("edit_current", "owo whats this")
+        assert "is not one of" in called.text
 
 
-def test_anki_freaks_out_with_inaccessible_folder(setup):
-    with method_mocked(setup.anki_wallpaper.configuration, "showWarning") as called:
-        with editing_config() as editor:
-            editor.text = re.sub(r'"/[^"]+"', '"/root/"', editor.text)
-        assert called.times == 1
-        assert "Permission denied" in called.text_argument
-
-
-def test_anki_freaks_out_with_not_existing_folder(setup):
-    with method_mocked(setup.anki_wallpaper.configuration, "showWarning") as called:
+def test_anki_wallpaper_freaks_out_if_wallpaper_folder_does_not_exist(setup):
+    with show_info_mocked(setup.anki_wallpaper.configuration, "showWarning") as called:
         with editing_config() as editor:
             editor.text = re.sub(r'"/[^"]+"', '"/owo whats this/"', editor.text)
-        assert called.times == 1
-        assert "No such file" in called.text_argument
+        assert "No such file" in called.text
 
 
-def test_anki_freaks_out_with_wanted_files_missing(setup, tmpdir):
-    with method_mocked(setup.anki_wallpaper.configuration, "showWarning") as called:
+def test_anki_wallpaper_freaks_out_if_wallpaper_folder_is_not_accessible(setup):
+    with show_info_mocked(setup.anki_wallpaper.configuration, "showWarning") as called:
+        with editing_config() as editor:
+            editor.text = re.sub(r'"/[^"]+"', '"/root/"', editor.text)
+        assert "Permission denied" in called.text
+
+
+def test_anki_wallpaper_freaks_out_if_wallpapers_files_are_missing(setup, tmpdir):
+    with show_info_mocked(setup.anki_wallpaper.configuration, "showWarning") as called:
         with editing_config() as editor:
             editor.text = re.sub(r'"/[^"]+"', f'"{tmpdir.strpath}"', editor.text)
-        assert called.times == 1
-        assert "does not contain dark wallpapers" in called.text_argument
+        assert "does not contain dark wallpapers" in called.text
