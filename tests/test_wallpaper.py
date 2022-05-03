@@ -10,7 +10,7 @@ from _pytest.monkeypatch import MonkeyPatch
 from aqt.addons import AddonsDialog, ConfigEditor
 from aqt.qt import QColor, QWidget, QImage
 
-from tests.anki_tools import move_main_window_to_state, anki_version
+from tests.tools.collection import move_main_window_to_state, anki_version
 from tests.conftest import wait_until, wait
 
 image_save_folder = os.getcwd()

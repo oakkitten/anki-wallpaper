@@ -11,7 +11,7 @@ from anki.decks import DeckId
 from pytest_anki._launch import anki_running, temporary_user  # noqa
 from waitress import wasyncore
 
-from tests.anki_tools import (
+from tests.tools.collection import (
     CardDescription,
     anki_version,
     get_decks,
