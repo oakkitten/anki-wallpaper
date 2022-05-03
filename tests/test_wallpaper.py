@@ -1,8 +1,9 @@
 import os
 import sys
 import re
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
+from typing import Callable
 from unittest.mock import MagicMock
 
 import aqt
@@ -110,14 +111,23 @@ def get_previewer():
 ########################################################################################
 
 
+# sample wallpaper colors: puppy, kitten, pyppy.dark, kitten.dark
+puppy = ["#eeebe7", "#e5dfd9"]
+kitten = ["#ebebeb", "#dfdfdf"]
+puppy_dark = ["#47362a", "#3c2d23"]
+kitten_dark = ["#303030", "#292929"]
+light_colors = puppy + kitten
+dark_colors = puppy_dark + kitten_dark
+
+
 def test_main_window(setup):
     window = get_main_window()
 
     with screenshot_saved_on_error(window):
-        assert get_color(window, 5, 5) == "#eeebe7"  # menu
-        assert get_color(window, 5, 40) == "#eeebe7"  # links
-        assert get_color(window, 5, 280) == "#eeebe7"  # main area
-        assert get_color(window, 5, 490) == "#e5dfd9"  # bottom area
+        assert get_color(window, 5, 5) in light_colors  # menu
+        assert get_color(window, 5, 40) in light_colors  # links
+        assert get_color(window, 5, 280) in light_colors  # main area
+        assert get_color(window, 5, 490) in light_colors  # bottom area
 
 
 # on Anki 2.1.49 tag area is an input field and has white background
@@ -126,32 +136,32 @@ def test_add_cards_dialog(setup):
     dialog = get_add_cards_dialog()
 
     with screenshot_saved_on_error(dialog):
-        assert get_color(dialog, 5, 5) == "#eeebe7"  # edge
-        assert get_color(dialog, 270, 80) == "#eeebe7"  # buttons area
-        assert get_color(dialog, 270, 270) == "#eeebe7"  # main area
+        assert get_color(dialog, 5, 5) in light_colors  # edge
+        assert get_color(dialog, 270, 80) in light_colors  # buttons area
+        assert get_color(dialog, 270, 270) in light_colors  # main area
         if anki_version >= (2, 1, 50):
-            assert get_color(dialog, 270, 430) == "#eeebe7"  # tags area
-        assert get_color(dialog, 5, 490) == "#e5dfd9"  # bottom area
+            assert get_color(dialog, 270, 430) in light_colors  # tags area
+        assert get_color(dialog, 5, 490) in light_colors  # bottom area
 
 
 def test_edit_current_dialog(setup):
     dialog = get_edit_current_dialog()
 
     with screenshot_saved_on_error(dialog):
-        assert get_color(dialog, 5, 5) == "#eeebe7"  # edge
-        assert get_color(dialog, 270, 60) == "#eeebe7"  # buttons area
-        assert get_color(dialog, 270, 270) == "#eeebe7"  # main area
+        assert get_color(dialog, 5, 5) in light_colors  # edge
+        assert get_color(dialog, 270, 60) in light_colors  # buttons area
+        assert get_color(dialog, 270, 270) in light_colors  # main area
         if anki_version >= (2, 1, 50):
-            assert get_color(dialog, 270, 440) == "#eeebe7"  # tags area
-        assert get_color(dialog, 5, 490) == "#e5dfd9"  # bottom area
+            assert get_color(dialog, 270, 440) in light_colors  # tags area
+        assert get_color(dialog, 5, 490) in light_colors  # bottom area
 
 
 def test_previewer(setup):
     previewer = get_previewer()
 
     with screenshot_saved_on_error(previewer):
-        assert get_color(previewer, 5, 5) == "#eeebe7"  # edge
-        assert get_color(previewer, 5, 490) == "#e5dfd9"  # bottom area
+        assert get_color(previewer, 5, 5) in light_colors  # edge
+        assert get_color(previewer, 5, 490) in light_colors  # bottom area
 
 
 ########################################################################################
@@ -164,11 +174,8 @@ def all_windows_set_up():
     edit_current = get_edit_current_dialog()
 
     def get_colors():
-        return [
-            get_color(window, 5, 5) for window in (
-                main_window, add_cards_dialog, edit_current
-            )
-        ]
+        windows = main_window, add_cards_dialog, edit_current
+        return [get_color(window, 5, 5) for window in windows]
 
     with screenshot_saved_on_error(main_window), \
          screenshot_saved_on_error(add_cards_dialog), \
@@ -176,16 +183,17 @@ def all_windows_set_up():
         yield get_colors
 
 
-
 def test_next_wallpaper(setup):
     with all_windows_set_up() as get_colors:
-        assert get_colors() == ["#eeebe7"] * 3
+        assert {*get_colors()} <= {*light_colors}
+        current_colors, alternate_colors = \
+            (puppy, kitten) if {*get_colors()} <= {*puppy} else (kitten, puppy)
 
         setup.anki_wallpaper.next_wallpaper()
-        wait_until(lambda: get_colors() == ["#ebebeb"] * 3)
+        wait_until(lambda: {*get_colors()} <= {*alternate_colors})
 
         setup.anki_wallpaper.next_wallpaper()
-        wait_until(lambda: get_colors() == ["#eeebe7"] * 3)
+        wait_until(lambda: {*get_colors()} <= {*current_colors})
 
 
 @pytest.mark.skipif(anki_version < (2, 1, 50), reason="not applicable to Anki < 2.1.50")
@@ -193,13 +201,13 @@ def test_theme_change(setup):
     from aqt.theme import Theme
 
     with all_windows_set_up() as get_colors:
-        assert get_colors() == ["#eeebe7"] * 3
+        assert {*get_colors()} <= {*light_colors}
 
         aqt.mw.set_theme(Theme.DARK)
-        wait_until(lambda: get_colors() == ["#303030"] * 3)
+        assert {*get_colors()} <= {*dark_colors}
 
         aqt.mw.set_theme(Theme.LIGHT)
-        wait_until(lambda: get_colors() == ["#eeebe7"] * 3)
+        assert {*get_colors()} <= {*light_colors}
 
 
 ########################################################################################
