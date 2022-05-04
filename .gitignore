@@ -7,3 +7,4 @@ anki_wallpaper/meta.json
 htmlcov/
 .coverage
 .coverage.*
+__pycache__/

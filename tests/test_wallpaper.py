@@ -13,6 +13,7 @@ from aqt.qt import QColor, QWidget, QImage
 from tests.tools.collection import move_main_window_to_state, anki_version
 from tests.tools.testing import wait_until, wait
 
+
 image_save_folder = os.getcwd()
 
 
@@ -70,7 +71,7 @@ def get_main_window():
     return window
 
 
-def get_add_cards_dialog():
+def open_add_cards_dialog():
     dialog = aqt.dialogs.open("AddCards", aqt.mw)
     dialog.resize(500, 500)
 
@@ -80,7 +81,7 @@ def get_add_cards_dialog():
     return dialog
 
 
-def get_edit_current_dialog():
+def open_edit_current_dialog():
     move_main_window_to_state("review")
     dialog = aqt.dialogs.open("EditCurrent", aqt.mw)
     dialog.resize(500, 500)
@@ -91,7 +92,8 @@ def get_edit_current_dialog():
     return dialog
 
 
-def get_previewer():
+@contextmanager
+def previewer_open():
     browser = aqt.dialogs.open("Browser", aqt.mw)
     wait_until(lambda: browser.editor.note is not None)
 
@@ -102,7 +104,10 @@ def get_previewer():
     with screenshot_saved_on_error(previewer):
         wait_until(lambda: get_color(previewer, 30, 30) == "#ff0000")  # our red marker
 
-    return previewer
+    try:
+        yield previewer
+    finally:
+        browser.onTogglePreview()
 
 
 ######################################################################## test wallpapers
@@ -130,7 +135,7 @@ def test_main_window(setup):
 # on Anki 2.1.49 tag area is an input field and has white background
 # on Anki 2.1.49+ it's a special thing with tags and has transparent background
 def test_add_cards_dialog(setup):
-    dialog = get_add_cards_dialog()
+    dialog = open_add_cards_dialog()
 
     with screenshot_saved_on_error(dialog):
         assert get_color(dialog, 5, 5) in light_colors  # edge
@@ -142,7 +147,7 @@ def test_add_cards_dialog(setup):
 
 
 def test_edit_current_dialog(setup):
-    dialog = get_edit_current_dialog()
+    dialog = open_edit_current_dialog()
 
     with screenshot_saved_on_error(dialog):
         assert get_color(dialog, 5, 5) in light_colors  # edge
@@ -154,11 +159,10 @@ def test_edit_current_dialog(setup):
 
 
 def test_previewer(setup):
-    previewer = get_previewer()
-
-    with screenshot_saved_on_error(previewer):
-        assert get_color(previewer, 5, 5) in light_colors  # edge
-        assert get_color(previewer, 5, 490) in light_colors  # bottom area
+    with previewer_open() as previewer:
+        with screenshot_saved_on_error(previewer):
+            assert get_color(previewer, 5, 5) in light_colors  # edge
+            assert get_color(previewer, 5, 490) in light_colors  # bottom area
 
 
 ########################################################################### test changes
@@ -167,8 +171,8 @@ def test_previewer(setup):
 @contextmanager
 def all_windows_set_up():
     main_window = get_main_window()
-    add_cards_dialog = get_add_cards_dialog()
-    edit_current = get_edit_current_dialog()
+    add_cards_dialog = open_add_cards_dialog()
+    edit_current = open_edit_current_dialog()
 
     def get_colors():
         windows = main_window, add_cards_dialog, edit_current
