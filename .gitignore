@@ -3,6 +3,7 @@ anki_wallpaper/meta.json
 .idea/
 
 .tox/
+.pytest_cache/
 htmlcov/
 .coverage
 .coverage.*
