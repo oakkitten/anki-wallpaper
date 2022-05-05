@@ -1,0 +1,52 @@
+name: Update latest
+
+on:
+  schedule:
+   - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-latest:
+    name: Update latest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Change to latest version
+        run: |
+          export LATEST=$(pip index --pre versions aqt | perl -ne 'm/aqt \((2.1.[a-z0-9]+)\)/ && print "$1"')
+          sed -i -r "s/ankilatest: (anki|aqt\[qt6\])==2.1.[a-z0-9]+/ankilatest: \1==$LATEST/g" tox.ini
+          if [[ -z "$(git status --porcelain)" ]]; then
+            echo "VERSION_CHANGED=false" >> "$GITHUB_ENV"
+          else
+            echo "VERSION_CHANGED=true" >> "$GITHUB_ENV"
+            echo "LATEST_VERSION=$LATEST" >> "$GITHUB_ENV"
+          fi
+
+      - name: No changes, canceling
+        uses: andymckay/cancel-action@0.2
+        if: env.VERSION_CHANGED == true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pyqt5-dev-tools xvfb
+
+      - name: Install tox
+        run: pip install tox
+
+      - name: Run tests
+        run: tox -e py39-ankilatest -- --forked --verbose
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          title: Update latest Anki version to ${{ env.LATEST_VERSION }}
+          commit-message: Update latest Anki version to ${{ env.LATEST_VERSION }}
