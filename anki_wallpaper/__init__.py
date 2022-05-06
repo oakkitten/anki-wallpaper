@@ -29,6 +29,8 @@ ALTERED_DIALOGS_DIALOG_MANAGER_TAGS = {
 }
 
 
+# This also removes the weird border below the menu bar that is present on Anki 2.1.50.
+# It is not changed with the theme for some reason.
 def set_main_window_wallpaper():
     aqt.mw.setStyleSheet(rf"""
         QMainWindow {{
@@ -36,7 +38,11 @@ def set_main_window_wallpaper():
             background-position: {config.current_wallpaper.position};
         }}
         
-        QMenuBar {{ background: transparent; }}
+        QMenuBar {{ 
+            background: transparent;
+            border: none; 
+        }}
+        
         #centralwidget {{  background: transparent; }}
     """)
 
