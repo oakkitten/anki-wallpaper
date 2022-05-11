@@ -101,7 +101,7 @@ class Wallpaper:
         url = file_path.absolute().as_posix()
 
         positions = {"center", "left", "right", "top", "bottom"} & {*file_name_parts}
-        position = list(positions)[0] if positions else "center"
+        position = " ".join(positions) if positions else "center"
 
         dark = "dark" in file_name_parts
 

@@ -41,7 +41,7 @@ separated from other parts of the name using the characters
 
 By default, wallpapers will be anchored by the centre, 
 that is, the center of the wallpaper will be in the center of the window.
-You can change anchoring by putting any of the following in the file name: 
+You can change anchoring by putting a combination of the following in the file name: 
 <key>&nbsp;`center`&nbsp;</key>, 
 <key>&nbsp;`top`&nbsp;</key>, 
 <key>&nbsp;`left`&nbsp;</key>, 
@@ -50,6 +50,7 @@ You can change anchoring by putting any of the following in the file name:
 Some examples:
 
 * `clouds.jpg`: light mode, center-anchored;
+* `snow.bottom.left.jpg`: light mode, bottom-left-anchored;
 * `gloomy_mountains-dark-top.jpeg`: dark mode, top-anchored.
 
 The configuration takes effect immediately.
