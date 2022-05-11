@@ -1,7 +1,7 @@
-import os
 import re
 from contextlib import contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 
 import aqt
 import aqt.browser.previewer
@@ -85,6 +85,8 @@ class IsEnabled:
 ########################################################################################
 
 
+# Qt doesn't seem to like `file://` URLs, nor it likes backslashes in any form.
+# Therefore on both Linux and Windows `url` is a Posix path, as in `C:/Foo/Bar`.
 @dataclass
 class Wallpaper:
     url: str
@@ -92,12 +94,11 @@ class Wallpaper:
     dark: bool
 
     @classmethod
-    def from_file_path(cls, file_path):
-        file_name = os.path.basename(file_path)
-        file_name_without_extension = file_name.rsplit(".", 1)[0]
+    def from_file_path(cls, file_path: Path):
+        file_name_without_extension = file_path.name.rsplit(".", 1)[0]
         file_name_parts = re.split(r"[-_. ]", file_name_without_extension)
 
-        url = file_path.replace("\\", "/")
+        url = file_path.absolute().as_posix()
 
         positions = {"center", "left", "right", "top", "bottom"} & {*file_name_parts}
         position = list(positions)[0] if positions else "center"
@@ -119,48 +120,44 @@ class Wallpapers:
     def from_data(cls, data):
         result = cls([], [], [])
 
-        folder_path = data[FOLDER_WITH_WALLPAPERS]
+        folder = Path(data[FOLDER_WITH_WALLPAPERS])
 
         try:
-            file_names = os.listdir(folder_path)
+            files = [path.absolute() for path in folder.iterdir() if path.is_file()]
         except Exception as e:
-            result.errors.append(f"Error opening wallpaper folder '{folder_path}': {e}")
+            result.errors.append(f"Error opening wallpaper folder '{folder}': {e}")
         else:
-            file_paths = [os.path.join(folder_path, file_name) for file_name in file_names]
-            files_paths_to_validate_via_opening = \
-                file_paths if len(file_paths) < 10 else file_paths[:5] + file_paths[5:]
+            files_to_validate_via_opening = \
+                files if len(files) < 10 else files[:5] + files[5:]
 
-            for file_path in file_paths:
-                if '"' in file_path:
-                    result.errors.append(f"File path contains quotes: '{file_path}'")
+            for file in files:
+                if '"' in str(file):
+                    result.errors.append(f"File path contains quotes: '{file}'")
 
-                if file_path in files_paths_to_validate_via_opening:
+                if file in files_to_validate_via_opening:
                     try:
-                        with open(file_path, "r"):
+                        with file.open():
                             pass
                     except Exception as e:
-                        result.errors.append(f"Error opening file '{file_path}': {e}")
+                        result.errors.append(f"Error opening file '{file}': {e}")
 
-                wallpaper = Wallpaper.from_file_path(file_path)
+                wallpaper = Wallpaper.from_file_path(file)
                 (result.dark if wallpaper.dark else result.light).append(wallpaper)
 
             if not result.light:
-                result.errors.append(
-                    f"Folder does not contain light wallpapers: '{folder_path}'")
+                result.errors.append(f"Folder does not contain light wallpapers: '{folder}'")
             if not result.dark:
-                result.errors.append(
-                    f"Folder does not contain dark wallpapers: '{folder_path}'")
+                result.errors.append(f"Folder does not contain dark wallpapers: '{folder}'")
 
         return result
 
 
 def change_folder_with_wallpapers_setting_to_sample_folder():
-    import os.path
-    this_file_folder, _file = os.path.split(__file__)
-    sample_wallpapers_folder = os.path.join(this_file_folder, "sample_wallpapers")
+    this_file_folder = Path(__file__).parent
+    sample_wallpapers_folder = this_file_folder / "sample_wallpapers"
 
     with editing_config() as data:
-        data[FOLDER_WITH_WALLPAPERS] = sample_wallpapers_folder
+        data[FOLDER_WITH_WALLPAPERS] = str(sample_wallpapers_folder)
 
 
 ########################################################################################
