@@ -130,7 +130,7 @@ class Wallpapers:
             files_to_validate_via_opening = \
                 files if len(files) < 10 else files[:5] + files[5:]
 
-            for file in files:
+            for file in sorted(files):
                 if '"' in str(file):
                     result.errors.append(f"File path contains quotes: '{file}'")
 
