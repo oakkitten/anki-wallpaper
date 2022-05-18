@@ -1,9 +1,15 @@
-import os
 import subprocess
 import shlex
 import re
+import sys
+from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from textwrap import dedent
+
+
+def log(*args):
+    print(*args, file=sys.stderr)
 
 
 def run(command: str) -> str:
@@ -12,10 +18,6 @@ def run(command: str) -> str:
                   .stdout
                   .decode()
     )
-
-
-def get_aqt_version(pip_output: str) -> str:
-    return re.match(r"aqt \((2.1.[a-z0-9]+)\)", pip_output).group(1)
 
 
 def last_bit(version: str) -> str:
@@ -30,121 +32,106 @@ def remove_two_edge_newlines(text: str) -> str:
     return text
 
 
-# Inserts into `text` before line that matches `line_re`, additional lines.
-# These lines are dedented and then inserted on the same level as the matched line.
-# One leading and one trailing newlines of addition, if any, are removed.
-def insert_before_line(text: str, line_re: str, addition: str):
-    lines = []
-    for line in text.split("\n"):
-        if re.search(line_re, line):
-            leading_spaces = len(line) - len(line.lstrip())
-            for new_line in remove_two_edge_newlines(dedent(addition)).split("\n"):
-                if new_line.strip():
-                    lines.append(" " * leading_spaces + new_line)
-                else:
-                    lines.append("")
-        lines.append(line)
-    return "\n".join(lines)
+@dataclass
+class File:
+    contents: str
+
+    # Inserts into `text` before line that matches `line_re`, additional lines.
+    # These lines are dedented and then inserted on the same level as the matched line.
+    # One leading and one trailing newlines of addition, if any, are removed.
+    def insert_before_line(self, line_re: str, addition: str):
+        lines = []
+        for line in self.contents.split("\n"):
+            if re.search(line_re, line):
+                leading_spaces = len(line) - len(line.lstrip())
+                for new_line in remove_two_edge_newlines(dedent(addition)).split("\n"):
+                    if new_line.strip():
+                        lines.append(" " * leading_spaces + new_line)
+                    else:
+                        lines.append("")
+            lines.append(line)
+        self.contents = "\n".join(lines)
+
+
+@contextmanager
+def editing(file_name) -> File:
+    file_path = Path(file_name)
+    file = File(file_path.read_text())
+    yield file
+    file_path.write_text(file.contents)
 
 
 ########################################################################################
 
 
-def add_new_tox_env(text: str, version: str) -> str:
-    tag = last_bit(version)
-    text = insert_before_line(text, "py39-ankilatest", f"py39-anki{tag}qt{{5,6}}")
-    return insert_before_line(text, "ankilatest: anki==", f"""
-        anki{tag}qt{{5,6}}: anki=={version}
-        anki{tag}qt5: aqt[qt5]=={version}
-        anki{tag}qt6: aqt[qt6]=={version}\n
-    """)
+def update_prerelease(tox_ini: File, main_yml: File, version):
+    if re.search(fr"ankilatest: anki=={version}\b", tox_ini.contents):
+        exit(1)
+    else:
+        log(f":: updating pre-release test environment with Anki {version}")
 
+        tox_ini.contents = re.sub(
+            r"ankilatest: (anki|aqt\[qt6])==\d+\.\d+\.[a-z0-9]+",
+            fr"ankilatest: \1=={version}",
+            tox_ini.contents
+        )
 
-def add_new_matrix_include(text: str, version: str) -> str:
-    tag = last_bit(version)
-    return insert_before_line(text, "name: Latest Anki", f"""
-        - name: Anki {version} (Qt5)
-          python: 3.9
-          environment: py39-anki{tag}qt5
-        - name: Anki {version} (Qt6)
-          python: 3.9
-          environment: py39-anki{tag}qt6
-    """)
-
-
-def replace_prerelease_tox_env(tox_ini: str, version: str):
-    return re.sub(
-        r"ankilatest: (anki|aqt\[qt6])==2.1.[a-z0-9]+",
-        fr"ankilatest: \1=={version}",
-        tox_ini
-    )
-
-
-def replace_prerelease_matrix_include_name(main_yml: str, version: str):
-    return re.sub(
-        r"Latest Anki \(2.1.[a-z0-9]+\)",
-        fr"Latest Anki ({version})",
-        main_yml
-    )
+        main_yml.contents = re.sub(
+            r"Latest Anki \(\d+\.\d+\.[a-z0-9]+\)",
+            fr"Latest Anki ({version})",
+            main_yml.contents
+        )
 
 
 ########################################################################################
+
+
+def add_stable(tox_ini: File, main_yml: File, version):
+    if re.search(fr"}}: anki=={version}\b", tox_ini.contents):
+        exit(1)
+    else:
+        log(f":: adding new stable test environment with Anki {version}")
+
+        tag = last_bit(version)
+
+        tox_ini.insert_before_line(
+            "py39-ankilatest",
+            f"py39-anki{tag}qt{{5,6}}"
+        )
+
+        tox_ini.insert_before_line(
+            "ankilatest: anki==",
+            f"""
+            anki{tag}qt{{5,6}}: anki=={version}
+            anki{tag}qt5: aqt[qt5]=={version}
+            anki{tag}qt6: aqt[qt6]=={version}\n
+            """
+        )
+
+        main_yml.insert_before_line(
+            "name: Latest Anki",
+            f"""
+            - name: Anki {version} (Qt5)
+              python: 3.9
+              environment: py39-anki{tag}qt5
+            - name: Anki {version} (Qt6)
+              python: 3.9
+              environment: py39-anki{tag}qt6
+            """
+        )
+
+
 ########################################################################################
 
 
 def upgrade():
-    tox_ini_file = Path("tox.ini")
-    main_yml_file = Path(".github/workflows/main.yml")
-    github_env_file = Path(os.environ["GITHUB_ENV"])
-
-    tox_ini = tox_ini_file.read_text()
-    main_yml = main_yml_file.read_text()
-
-    latest_anki = get_aqt_version(run("pip index versions aqt"))
-    latest_anki_pre = get_aqt_version(run("pip index --pre versions aqt"))
-    print(f":: latest Anki version: {latest_anki}")
-    print(f":: latest pre-release Anki version: {latest_anki_pre}")
-
-    add_new_env = not re.search(fr"=={latest_anki}\b", tox_ini)
-    update_pre_env = not re.search(fr"ankilatest: anki=={latest_anki_pre}\b", tox_ini)
-
-    if not add_new_env and not update_pre_env:
-        return
-
-    if add_new_env:
-        print(f":: adding new test environment for Anki {latest_anki}")
-        tox_ini = add_new_tox_env(tox_ini, latest_anki)
-        main_yml = add_new_matrix_include(main_yml, latest_anki)
-
-    if update_pre_env:
-        print(f":: updating pre-release test environment with Anki {latest_anki_pre}")
-        tox_ini = replace_prerelease_tox_env(tox_ini, latest_anki_pre)
-        main_yml = replace_prerelease_matrix_include_name(main_yml, latest_anki_pre)
-
-    tox_ini_file.write_text(tox_ini)
-    main_yml_file.write_text(main_yml)
-
-    ####################################################################################
-
-    add_new_env_msg = f"Add new test environment for Anki {latest_anki}"
-    update_pre_env_msg = f"Update pre-release test environment with Anki {latest_anki_pre}"
-
-    if add_new_env and update_pre_env:
-        pr_title = f"{add_new_env_msg}; {update_pre_env_msg}".replace("; U", "; u")
-        commit_message = (
-            f"Tests: add env {latest_anki}, update pre env {latest_anki_pre}"
-            f"\n\n{add_new_env_msg}\n{update_pre_env_msg}"
-        )
-    elif add_new_env:
-        pr_title = add_new_env_msg
-        commit_message = f"Tests: add new environment for Anki {latest_anki}"
-    else:
-        pr_title = update_pre_env_msg
-        commit_message = f"Tests: update pre-release env with Anki {latest_anki_pre}"
-
-    with github_env_file.open("a") as github_env:
-        github_env.write(f'PR_TITLE<<EOF\n{pr_title}\nEOF\n')
-        github_env.write(f'COMMIT_MESSAGE<<EOF\n{commit_message}\nEOF\n')
+    with editing("tox.ini") as tox_ini, editing(".github/workflows/main.yml") as main_yml:
+        if sys.argv[1] == "update-prerelease":
+            update_prerelease(tox_ini, main_yml, sys.argv[2])
+        elif sys.argv[1] == "add-stable":
+            add_stable(tox_ini, main_yml, sys.argv[2])
+        else:
+            exit(2)
 
 
 if __name__ == "__main__":
