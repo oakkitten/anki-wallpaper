@@ -11,6 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Generate access token
+        uses: tibdex/github-app-token@v1
+        id: generate-token
+        with:
+          app_id: ${{ secrets.LOKSMITH_ID }}
+          private_key: ${{ secrets.LOCKSMITH_PRIVATE_KEY }}
+
       - name: Setup Python 3.9
         uses: actions/setup-python@v2
         with:
@@ -45,6 +52,6 @@ jobs:
       - name: Create pull request
         uses: peter-evans/create-pull-request@v4
         with:
-          token: ${{ secrets.KITTENOAK_PAT }}
-          push-to-fork: kittenoak/anki-wallpaper
+          token: ${{ steps.generate-token.outputs.token }}
           title: ${{ env.PR_TITLE }}
+          delete-branch: true
