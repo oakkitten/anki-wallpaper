@@ -48,3 +48,4 @@ jobs:
           token: ${{ secrets.KITTENOAK_PAT }}
           push-to-fork: kittenoak/anki-wallpaper
           title: ${{ env.PR_TITLE }}
+          delete-branch: true
