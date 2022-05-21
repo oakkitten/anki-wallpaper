@@ -16,16 +16,16 @@ jobs:
         include:
           - name: Anki 2.1.49
             python: 3.8
-            environment: py38-anki49
+            environment: py38-anki2.1.49
           - name: Anki 2.1.51 (Qt5)
             python: 3.9
-            environment: py39-anki51qt5
+            environment: py39-anki2.1.51qt5
           - name: Anki 2.1.51 (Qt6)
             python: 3.9
-            environment: py39-anki51qt6
-          - name: Latest Anki (2.1.52rc1)
+            environment: py39-anki2.1.51qt6
+          - name: Pre-release (2.1.52rc1)
             python: 3.9
-            environment: py39-ankilatest
+            environment: py39-ankipre
       fail-fast: false
 
     steps:

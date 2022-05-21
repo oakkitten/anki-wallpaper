@@ -20,10 +20,6 @@ def run(command: str) -> str:
     )
 
 
-def last_bit(version: str) -> str:
-    return version.split(".")[-1]
-
-
 def remove_two_edge_newlines(text: str) -> str:
     if text.startswith("\n"):
         text = text[1:]
@@ -64,59 +60,57 @@ def editing(file_name) -> File:
 ########################################################################################
 
 
-def update_prerelease(tox_ini: File, main_yml: File, version):
-    if re.search(fr"ankilatest: anki=={version}\b", tox_ini.contents):
+def update_prerelease(tox_ini: File, tests_yml: File, version):
+    if re.search(fr"ankipre: anki=={version}\b", tox_ini.contents):
         exit(1)
     else:
         log(f":: updating pre-release test environment with Anki {version}")
 
         tox_ini.contents = re.sub(
-            r"ankilatest: (anki|aqt\[qt6])==\d+\.\d+\.[a-z0-9]+",
-            fr"ankilatest: \1=={version}",
+            r"ankipre: (anki|aqt\[qt6])==\d+\.\d+\.[a-z0-9]+",
+            fr"ankipre: \1=={version}",
             tox_ini.contents
         )
 
-        main_yml.contents = re.sub(
-            r"Latest Anki \(\d+\.\d+\.[a-z0-9]+\)",
-            fr"Latest Anki ({version})",
-            main_yml.contents
+        tests_yml.contents = re.sub(
+            r"Pre-release \(\d+\.\d+\.[a-z0-9]+\)",
+            fr"Pre-release ({version})",
+            tests_yml.contents
         )
 
 
 ########################################################################################
 
 
-def add_stable(tox_ini: File, main_yml: File, version):
+def add_stable(tox_ini: File, tests_yml: File, version):
     if re.search(fr"}}: anki=={version}\b", tox_ini.contents):
         exit(1)
     else:
         log(f":: adding new stable test environment with Anki {version}")
 
-        tag = last_bit(version)
-
         tox_ini.insert_before_line(
-            "py39-ankilatest",
-            f"py39-anki{tag}qt{{5,6}}"
+            "py39-ankipre",
+            f"py39-anki{version}qt{{5,6}}"
         )
 
         tox_ini.insert_before_line(
-            "ankilatest: anki==",
+            "ankipre: anki==",
             f"""
-            anki{tag}qt{{5,6}}: anki=={version}
-            anki{tag}qt5: aqt[qt5]=={version}
-            anki{tag}qt6: aqt[qt6]=={version}\n
+            anki{version}qt{{5,6}}: anki=={version}
+            anki{version}qt5: aqt[qt5]=={version}
+            anki{version}qt6: aqt[qt6]=={version}\n
             """
         )
 
-        main_yml.insert_before_line(
-            "name: Latest Anki",
+        tests_yml.insert_before_line(
+            "name: Pre-release",
             f"""
             - name: Anki {version} (Qt5)
               python: 3.9
-              environment: py39-anki{tag}qt5
+              environment: py39-anki{version}qt5
             - name: Anki {version} (Qt6)
               python: 3.9
-              environment: py39-anki{tag}qt6
+              environment: py39-anki{version}qt6
             """
         )
 
@@ -125,11 +119,11 @@ def add_stable(tox_ini: File, main_yml: File, version):
 
 
 def upgrade():
-    with editing("tox.ini") as tox_ini, editing(".github/workflows/main.yml") as main_yml:
+    with editing("tox.ini") as tox_ini, editing(".github/workflows/tests.yml") as tests_yml:
         if sys.argv[1] == "update-prerelease":
-            update_prerelease(tox_ini, main_yml, sys.argv[2])
+            update_prerelease(tox_ini, tests_yml, sys.argv[2])
         elif sys.argv[1] == "add-stable":
-            add_stable(tox_ini, main_yml, sys.argv[2])
+            add_stable(tox_ini, tests_yml, sys.argv[2])
         else:
             exit(2)
 

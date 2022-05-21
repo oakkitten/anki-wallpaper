@@ -1,4 +1,4 @@
-name: Update test environments
+name: Update
 
 on:
   schedule:
@@ -14,9 +14,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: Update pre-release environment
+          - name: Pre-release env
             environment: pre-release
-          - name: Add stable environment
+          - name: Stable env
             environment: stable
 
     steps:
@@ -46,9 +46,9 @@ jobs:
         run: |
           export PRERELEASE=$(pip index --pre versions aqt | perl -ne 'm/aqt \((2.1.[a-z0-9]+)\)/ && print "$1"')
           export STABLE=$(pip index versions aqt | perl -ne 'm/aqt \((2.1.[a-z0-9]+)\)/ && print "$1"')
-          if [ "$PRERELEASE" = "$STABLE"]; then exit 3; fi
-          python .github/workflows/latest.py update-prerelease $PRERELEASE \
-            && git add tox.ini .github/workflows/main.yml \
+          if [ "$PRERELEASE" = "$STABLE" ]; then exit 3; fi
+          python .github/workflows/update.py update-prerelease $PRERELEASE \
+            && git add tox.ini .github/workflows/tests.yml \
             && git commit -am "Tests: update pre-release env with Anki $PRERELEASE" \
             && echo PR_TITLE="Update pre-release test environment with Anki $PRERELEASE" >> "$GITHUB_ENV"
 
@@ -57,8 +57,8 @@ jobs:
         continue-on-error: true
         run: |
           export STABLE=$(pip index versions aqt | perl -ne 'm/aqt \((2.1.[a-z0-9]+)\)/ && print "$1"')
-          python .github/workflows/latest.py add-stable $STABLE \
-            && git add tox.ini .github/workflows/main.yml \
+          python .github/workflows/update.py add-stable $STABLE \
+            && git add tox.ini .github/workflows/tests.yml \
             && git commit -am "Tests: add new environment for Anki $STABLE" \
             && echo PR_TITLE="Add new test environment for Anki $STABLE" >> "$GITHUB_ENV"
 
