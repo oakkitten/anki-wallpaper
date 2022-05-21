@@ -1,4 +1,4 @@
-name: Update latest
+name: Update test environments
 
 on:
   schedule:
@@ -6,9 +6,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  update-latest:
-    name: Update latest
+  update-test-environments:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: Update pre-release environment
+            environment: pre-release
+          - name: Add stable environment
+            environment: stable
 
     steps:
       - name: Generate access token
@@ -26,32 +33,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Add and/or update test environments
+      - name: Prepare git
         run: |
           git config user.name kittenoak
           git config user.email kittenoak@users.noreply.github.com
-          
+
+      - name: Update pre-release test environment
+        if: matrix.environment == 'pre-release'
+        continue-on-error: true
+        run: |
           export PRERELEASE=$(pip index --pre versions aqt | perl -ne 'm/aqt \((2.1.[a-z0-9]+)\)/ && print "$1"')
+          export STABLE=$(pip index versions aqt | perl -ne 'm/aqt \((2.1.[a-z0-9]+)\)/ && print "$1"')
+          if [ "$PRERELEASE" = "$STABLE"]; then exit 3; fi
           python .github/workflows/latest.py update-prerelease $PRERELEASE \
             && git add tox.ini .github/workflows/main.yml \
             && git commit -am "Tests: update pre-release env with Anki $PRERELEASE" \
-            && export PRERELEASE_TITLE="Update pre-release test environment with Anki $PRERELEASE" \
-            || true
-          
+            && echo PR_TITLE="Update pre-release test environment with Anki $PRERELEASE" >> "$GITHUB_ENV"
+
+      - name: Add new stable test environment
+        if: matrix.environment == 'stable'
+        continue-on-error: true
+        run: |
           export STABLE=$(pip index versions aqt | perl -ne 'm/aqt \((2.1.[a-z0-9]+)\)/ && print "$1"')
           python .github/workflows/latest.py add-stable $STABLE \
             && git add tox.ini .github/workflows/main.yml \
             && git commit -am "Tests: add new environment for Anki $STABLE" \
-            && export STABLE_TITLE="Add new test environment for Anki $STABLE" \
-            || true
-
-          export PR_TITLE="$PRERELEASE_TITLE; $STABLE_TITLE"         
-          export PR_TITLE=$(echo "$PR_TITLE" | sed -r 's/^[ ;]+//; s/[ ;]+$//; s/; A/; a/')
-          echo "PR_TITLE=$PR_TITLE" >> "$GITHUB_ENV"
+            && echo PR_TITLE="Add new test environment for Anki $STABLE" >> "$GITHUB_ENV"
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v4
         with:
           token: ${{ steps.generate-token.outputs.token }}
           title: ${{ env.PR_TITLE }}
+          branch: update-test-environment/${{ matrix.environment }}
           delete-branch: true
