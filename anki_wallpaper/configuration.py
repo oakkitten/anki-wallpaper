@@ -128,7 +128,7 @@ class Wallpapers:
             result.errors.append(f"Error opening wallpaper folder '{folder}': {e}")
         else:
             files_to_validate_via_opening = \
-                files if len(files) < 10 else files[:5] + files[5:]
+                files if len(files) < 10 else files[:5] + files[-5:]
 
             for file in sorted(files):
                 if '"' in str(file):
