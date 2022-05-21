@@ -1,6 +1,11 @@
 name: Tests
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches-ignore:
+      - update-test-environment/*
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   run-tests:
