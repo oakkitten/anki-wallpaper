@@ -66,9 +66,11 @@ jobs:
 
     - name: Assemble the add-on
       run: | 
+        export VERSION="$(git describe --long)"
         cd anki_wallpaper
-        sed -i -r "s/# Wallpaper/\0 $(git describe)/" config.md
+        sed -i -r "s/# Wallpaper/\0 <version>$VERSION<\/version>/" config.md
         zip -r ../anki_wallpaper.ankiaddon *
+        echo ASSET_NAME="anki_wallpaper-$VERSION.ankiaddon" >> "$GITHUB_ENV"
 
     - name: Store artifact
       uses: svenstaro/upload-release-action@1.0.1
@@ -76,4 +78,4 @@ jobs:
         tag: ${{ github.ref }}
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: anki_wallpaper.ankiaddon
-        asset_name: anki_wallpaper.ankiaddon
+        asset_name: ${{ env.ASSET_NAME }}

@@ -7,6 +7,11 @@
     key {
         background-color: #44999999;
     }
+
+    version {
+        font-weight: normal;
+        font-size: medium;
+    }
 </style>
 
 # Wallpaper
