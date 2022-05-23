@@ -4,6 +4,8 @@ on:
   push:
     branches-ignore:
       - update-test-environment/*
+    tags:
+      - '**'
   pull_request:
   workflow_dispatch:
 
@@ -64,18 +66,22 @@ jobs:
     - name: Check out repository
       uses: actions/checkout@v2
 
+    # https://github.com/actions/checkout/issues/290
+    - name: Fetch tag annotations
+      run: git fetch --tags --force
+
     - name: Assemble the add-on
-      run: | 
+      run: |
         export VERSION="$(git describe --long)"
         cd anki_wallpaper
         sed -i -r "s/# Wallpaper/\0 <version>$VERSION<\/version>/" config.md
-        zip -r ../anki_wallpaper.ankiaddon *
-        echo ASSET_NAME="anki_wallpaper-$VERSION.ankiaddon" >> "$GITHUB_ENV"
+        zip -r ../anki-wallpaper.ankiaddon *
+        echo ASSET_NAME="anki-wallpaper-$VERSION.ankiaddon" >> "$GITHUB_ENV"
 
     - name: Store artifact
-      uses: svenstaro/upload-release-action@1.0.1
+      uses: svenstaro/upload-release-action@v2
       with:
         tag: ${{ github.ref }}
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: anki_wallpaper.ankiaddon
+        file: anki-wallpaper.ankiaddon
         asset_name: ${{ env.ASSET_NAME }}

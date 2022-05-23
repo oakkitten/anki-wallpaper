@@ -1,5 +1,3 @@
-import subprocess
-import shlex
 import re
 import sys
 from contextlib import contextmanager
@@ -10,14 +8,6 @@ from textwrap import dedent
 
 def log(*args):
     print(*args, file=sys.stderr)
-
-
-def run(command: str) -> str:
-    return (
-        subprocess.run(shlex.split(command), capture_output=True, check=True)
-                  .stdout
-                  .decode()
-    )
 
 
 def remove_two_edge_newlines(text: str) -> str:
@@ -39,12 +29,9 @@ class File:
         lines = []
         for line in self.contents.split("\n"):
             if re.search(line_re, line):
-                leading_spaces = len(line) - len(line.lstrip())
+                leading_spaces = " " * (len(line) - len(line.lstrip()))
                 for new_line in remove_two_edge_newlines(dedent(addition)).split("\n"):
-                    if new_line.strip():
-                        lines.append(" " * leading_spaces + new_line)
-                    else:
-                        lines.append("")
+                    lines.append(leading_spaces + new_line if new_line.strip() else "")
             lines.append(line)
         self.contents = "\n".join(lines)
 
@@ -67,13 +54,13 @@ def update_prerelease(tox_ini: File, tests_yml: File, version):
         log(f":: updating pre-release test environment with Anki {version}")
 
         tox_ini.contents = re.sub(
-            r"ankipre: (anki|aqt\[qt6])==\d+\.\d+\.[a-z0-9]+",
+            r"ankipre: (anki|aqt\[qt6])==[\d.a-z]+",
             fr"ankipre: \1=={version}",
             tox_ini.contents
         )
 
         tests_yml.contents = re.sub(
-            r"Pre-release \(\d+\.\d+\.[a-z0-9]+\)",
+            r"Pre-release \([\d.a-z]+\)",
             fr"Pre-release ({version})",
             tests_yml.contents
         )

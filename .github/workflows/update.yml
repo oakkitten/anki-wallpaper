@@ -44,8 +44,8 @@ jobs:
         if: matrix.environment == 'pre-release'
         continue-on-error: true
         run: |
-          export PRERELEASE=$(pip index --pre versions aqt | perl -ne 'm/aqt \((2.1.[a-z0-9]+)\)/ && print "$1"')
-          export STABLE=$(pip index versions aqt | perl -ne 'm/aqt \((2.1.[a-z0-9]+)\)/ && print "$1"')
+          export PRERELEASE=$(pip index --pre versions aqt | perl -ne 'm/aqt \(([\d.a-z]+)\)/ && print "$1"')
+          export STABLE=$(pip index versions aqt | perl -ne 'm/aqt \(([\d.a-z]+)\)/ && print "$1"')
           if [ "$PRERELEASE" = "$STABLE" ]; then exit 3; fi
           python .github/workflows/update.py update-prerelease $PRERELEASE \
             && git add tox.ini .github/workflows/tests.yml \
@@ -56,7 +56,7 @@ jobs:
         if: matrix.environment == 'stable'
         continue-on-error: true
         run: |
-          export STABLE=$(pip index versions aqt | perl -ne 'm/aqt \((2.1.[a-z0-9]+)\)/ && print "$1"')
+          export STABLE=$(pip index versions aqt | perl -ne 'm/aqt \(([\d.a-z]+)\)/ && print "$1"')
           python .github/workflows/update.py add-stable $STABLE \
             && git add tox.ini .github/workflows/tests.yml \
             && git commit -am "Tests: add new environment for Anki $STABLE" \
