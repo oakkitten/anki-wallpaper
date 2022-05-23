@@ -197,7 +197,7 @@ class Config:
         self.wallpapers = Wallpapers([], [], [])
         self.indexes = Indexes(0, 0)
 
-    def load(self):
+    def load(self, report_errors: bool = True):
         data = read_config()
 
         if data[FOLDER_WITH_WALLPAPERS] == "change_me":
@@ -208,7 +208,7 @@ class Config:
         self.wallpapers = Wallpapers.from_data(data)
         self.indexes = Indexes.from_data(data)
 
-        if self.wallpapers.errors:
+        if report_errors and self.wallpapers.errors:
             show_warning_about_wallpaper_folder_config_errors(self.wallpapers.errors)
 
     def next_wallpaper(self):

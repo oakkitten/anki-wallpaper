@@ -213,7 +213,7 @@ def setup_next_wallpaper_menu():
 
 
 config = Config()
-config.load()
+config.load(report_errors=False)
 
 
 @run_on_configuration_change
