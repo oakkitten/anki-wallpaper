@@ -6,7 +6,7 @@ on:
 
 jobs:
   fast_forward:
-    name: \#${{ github.event.number }}
+    name: '#${{ github.event.number }}'
     runs-on: ubuntu-latest
     if: github.event.label.name == 'fast-forward'
 
