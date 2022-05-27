@@ -54,8 +54,8 @@ def update_prerelease(tox_ini: File, tests_yml: File, version):
         log(f":: updating pre-release test environment with Anki {version}")
 
         tox_ini.contents = re.sub(
-            r"ankipre: (anki|aqt\[qt6])==[\d.a-z]+",
-            fr"ankipre: \1=={version}",
+            r"PRE=[\d.a-z]+",
+            fr"PRE={version}",
             tox_ini.contents
         )
 
@@ -78,15 +78,6 @@ def add_stable(tox_ini: File, tests_yml: File, version):
         tox_ini.insert_before_line(
             "py39-ankipre",
             f"py39-anki{version}qt{{5,6}}"
-        )
-
-        tox_ini.insert_before_line(
-            "ankipre: anki==",
-            f"""
-            anki{version}qt{{5,6}}: anki=={version}
-            anki{version}qt5: aqt[qt5]=={version}
-            anki{version}qt6: aqt[qt6]=={version}\n
-            """
         )
 
         tests_yml.insert_before_line(
