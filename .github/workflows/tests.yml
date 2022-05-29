@@ -58,8 +58,9 @@ jobs:
           ENV: ${{ matrix.environment }}
         run: |
           VERSION=$(echo $ENV | perl -nle "m/anki([\d\.]+)/; print \$1")
-          UPLOAD_DATE=$(curl https://pypi.org/pypi/anki/json | jq -r ".releases.\"$VERSION\"[0].upload_time" | sed -r "s/T.+//")
-          tox --time-travel=$UPLOAD_DATE -e $ENV -- --forked --verbose
+          UPLOAD_DATE=$(curl https://pypi.org/pypi/anki/json | jq -r ".releases.\"$VERSION\"[0].upload_time")
+          CUTOFF=$(date -d '$UPLOAD_DATE +1 hour' '+%Y-%m-%dT%H:%M:%S') 
+          tox --time-travel=$CUTOFF -e $ENV -- --forked --verbose
 
   assemble-ankiaddon:
     name: Assemble .ankiaddon
