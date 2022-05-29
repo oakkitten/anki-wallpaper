@@ -54,7 +54,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Run tests
-        run: tox -e ${{ matrix.environment }} -- --forked --verbose
+        run: tox -vvve ${{ matrix.environment }} -- --forked --verbose
 
   assemble-ankiaddon:
     name: Assemble .ankiaddon

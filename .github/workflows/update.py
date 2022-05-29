@@ -35,6 +35,10 @@ class File:
             lines.append(line)
         self.contents = "\n".join(lines)
 
+    def replace(self, needle_re: str, replacement: str):
+        self.contents = re.sub(needle_re, replacement, self.contents)
+        return self
+
 
 @contextmanager
 def editing(file_name) -> File:
@@ -47,22 +51,23 @@ def editing(file_name) -> File:
 ########################################################################################
 
 
-def update_prerelease(tox_ini: File, tests_yml: File, version):
+def update_prerelease(tox_ini: File, tests_yml: File, version, commit_sha):
     if re.search(fr"ankipre: anki=={version}\b", tox_ini.contents):
         exit(1)
     else:
         log(f":: updating pre-release test environment with Anki {version}")
 
-        tox_ini.contents = re.sub(
-            r"ankipre: (anki|aqt\[qt6])==[\d.a-z]+",
-            fr"ankipre: \1=={version}",
-            tox_ini.contents
+        tox_ini.replace(
+            fr"PRERELEASE_VERSION=[\d.a-z]+",
+            fr"PRERELEASE_VERSION={version}"
+        ).replace(
+            fr"PRERELEASE_REF=[\da-z]+",
+            fr"PRERELEASE_REF={commit_sha[:9]}"
         )
 
-        tests_yml.contents = re.sub(
-            r"Pre-release \([\d.a-z]+\)",
-            fr"Pre-release ({version})",
-            tests_yml.contents
+        tests_yml.replace(
+            fr"Pre-release \([\d.a-z]+\)",
+            fr"Pre-release ({version})"
         )
 
 
@@ -78,15 +83,6 @@ def add_stable(tox_ini: File, tests_yml: File, version):
         tox_ini.insert_before_line(
             "py39-ankipre",
             f"py39-anki{version}qt{{5,6}}"
-        )
-
-        tox_ini.insert_before_line(
-            "ankipre: anki==",
-            f"""
-            anki{version}qt{{5,6}}: anki=={version}
-            anki{version}qt5: aqt[qt5]=={version}
-            anki{version}qt6: aqt[qt6]=={version}\n
-            """
         )
 
         tests_yml.insert_before_line(
@@ -108,7 +104,7 @@ def add_stable(tox_ini: File, tests_yml: File, version):
 def upgrade():
     with editing("tox.ini") as tox_ini, editing(".github/workflows/tests.yml") as tests_yml:
         if sys.argv[1] == "update-prerelease":
-            update_prerelease(tox_ini, tests_yml, sys.argv[2])
+            update_prerelease(tox_ini, tests_yml, sys.argv[2], sys.argv[3])
         elif sys.argv[1] == "add-stable":
             add_stable(tox_ini, tests_yml, sys.argv[2])
         else:
