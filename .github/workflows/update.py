@@ -35,6 +35,10 @@ class File:
             lines.append(line)
         self.contents = "\n".join(lines)
 
+    def replace(self, needle_re: str, replacement: str):
+        self.contents = re.sub(needle_re, replacement, self.contents)
+        return self
+
 
 @contextmanager
 def editing(file_name) -> File:
@@ -53,22 +57,17 @@ def update_prerelease(tox_ini: File, tests_yml: File, version, commit_sha):
     else:
         log(f":: updating pre-release test environment with Anki {version}")
 
-        tox_ini.contents = re.sub(
-            r"PRERELEASE_VERSION=[\d.a-z]+",
-            fr"PRERELEASE_VERSION={version}",
-            tox_ini.contents
+        tox_ini.replace(
+            fr"PRERELEASE_VERSION=[\d.a-z]+",
+            fr"PRERELEASE_VERSION={version}"
+        ).replace(
+            fr"PRERELEASE_REF=[\da-z]+",
+            fr"PRERELEASE_REF={commit_sha[:9]}"
         )
 
-        tox_ini.contents = re.sub(
-            r"PRERELEASE_REF=[\da-z]+",
-            fr"PRERELEASE_REF={commit_sha[:9]}",
-            tox_ini.contents
-        )
-
-        tests_yml.contents = re.sub(
-            r"Pre-release \([\d.a-z]+\)",
-            fr"Pre-release ({version})",
-            tests_yml.contents
+        tests_yml.replace(
+            fr"Pre-release \([\d.a-z]+\)",
+            fr"Pre-release ({version})"
         )
 
 
