@@ -40,7 +40,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pyqt5-dev-tools xvfb
+          sudo apt-get install -y pyqt5-dev-tools xvfb jq
 
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v2
@@ -48,13 +48,18 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - name: Install tox
-        run: pip install tox
+        run: pip install tox tox-timemachine
 
       - name: Checkout repository
         uses: actions/checkout@v2
 
       - name: Run tests
-        run: tox -vvve ${{ matrix.environment }} -- --forked --verbose
+        env:
+          ENV: ${{ matrix.environment }}
+        run: |
+          VERSION=$(echo $ENV | perl -nle "m/anki([\d\.]+)/; print \$1")
+          UPLOAD_DATE=$(curl https://pypi.org/pypi/anki/json | jq -r ".releases.\"$VERSION\"[0].upload_time" | sed -r "s/T.+//")
+          tox --time-travel=$UPLOAD_DATE -e $ENV -- --forked --verbose
 
   assemble-ankiaddon:
     name: Assemble .ankiaddon
