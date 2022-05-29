@@ -44,24 +44,24 @@ jobs:
         if: matrix.environment == 'pre-release'
         continue-on-error: true
         run: |
-          export PRERELEASE=$(pip index --pre versions aqt | perl -ne 'm/aqt \(([\d.a-z]+)\)/ && print "$1"')
-          export STABLE=$(pip index versions aqt | perl -ne 'm/aqt \(([\d.a-z]+)\)/ && print "$1"')
+          PRERELEASE=$(pip index --pre versions aqt | perl -ne 'm/aqt \(([\d.a-z]+)\)/ && print "$1"')
+          STABLE=$(pip index versions aqt | perl -ne 'm/aqt \(([\d.a-z]+)\)/ && print "$1"')
           if [ "$PRERELEASE" = "$STABLE" ]; then exit 3; fi
-          export LAST_COMMIT=$(git ls-remote https://github.com/ankitects/anki.git main | awk '{print $1}')
-          python .github/workflows/update.py update-prerelease $PRERELEASE $LAST_COMMIT \
-            && git add tox.ini .github/workflows/tests.yml \
-            && git commit -am "Tests: update pre-release env with Anki $PRERELEASE" \
-            && echo PR_TITLE="Update pre-release test environment with Anki $PRERELEASE" >> "$GITHUB_ENV"
+          LAST_COMMIT=$(git ls-remote https://github.com/ankitects/anki.git main | awk '{print $1}')
+          python .github/workflows/update.py update-prerelease $PRERELEASE $LAST_COMMIT
+          git add tox.ini .github/workflows/tests.yml
+          git commit -am "Tests: update pre-release env with Anki $PRERELEASE"
+          echo PR_TITLE="Update pre-release test environment with Anki $PRERELEASE" >> "$GITHUB_ENV"
 
       - name: Add new stable test environment
         if: matrix.environment == 'stable'
         continue-on-error: true
         run: |
-          export STABLE=$(pip index versions aqt | perl -ne 'm/aqt \(([\d.a-z]+)\)/ && print "$1"')
-          python .github/workflows/update.py add-stable $STABLE \
-            && git add tox.ini .github/workflows/tests.yml \
-            && git commit -am "Tests: add new environment for Anki $STABLE" \
-            && echo PR_TITLE="Add new test environment for Anki $STABLE" >> "$GITHUB_ENV"
+          STABLE=$(pip index versions aqt | perl -ne 'm/aqt \(([\d.a-z]+)\)/ && print "$1"')
+          python .github/workflows/update.py add-stable $STABLE
+          git add tox.ini .github/workflows/tests.yml
+          git commit -am "Tests: add new environment for Anki $STABLE"
+          echo PR_TITLE="Add new test environment for Anki $STABLE" >> "$GITHUB_ENV"
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v4
