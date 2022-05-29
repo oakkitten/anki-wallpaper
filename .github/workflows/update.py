@@ -47,15 +47,21 @@ def editing(file_name) -> File:
 ########################################################################################
 
 
-def update_prerelease(tox_ini: File, tests_yml: File, version):
+def update_prerelease(tox_ini: File, tests_yml: File, version, commit_sha):
     if re.search(fr"ankipre: anki=={version}\b", tox_ini.contents):
         exit(1)
     else:
         log(f":: updating pre-release test environment with Anki {version}")
 
         tox_ini.contents = re.sub(
-            r"PRE=[\d.a-z]+",
-            fr"PRE={version}",
+            r"PRERELEASE_VERSION=[\d.a-z]+",
+            fr"PRERELEASE_VERSION={version}",
+            tox_ini.contents
+        )
+
+        tox_ini.contents = re.sub(
+            r"PRERELEASE_REF=[\da-z]+",
+            fr"PRERELEASE_REF={commit_sha[:9]}",
             tox_ini.contents
         )
 
@@ -99,7 +105,7 @@ def add_stable(tox_ini: File, tests_yml: File, version):
 def upgrade():
     with editing("tox.ini") as tox_ini, editing(".github/workflows/tests.yml") as tests_yml:
         if sys.argv[1] == "update-prerelease":
-            update_prerelease(tox_ini, tests_yml, sys.argv[2])
+            update_prerelease(tox_ini, tests_yml, sys.argv[2], sys.argv[3])
         elif sys.argv[1] == "add-stable":
             add_stable(tox_ini, tests_yml, sys.argv[2])
         else:
