@@ -51,21 +51,21 @@ def editing(file_name) -> File:
 ########################################################################################
 
 
-def update_prerelease(tox_ini: File, tests_yml: File, version, commit_sha):
+def update_prerelease(tox_ini: File, tests_yml: File, version):
     if re.search(fr"ankipre: anki=={version}\b", tox_ini.contents):
         exit(1)
     else:
         log(f":: updating pre-release test environment with Anki {version}")
 
         tox_ini.replace(
-            fr"PRERELEASE_VERSION=[\d.a-z]+",
-            fr"PRERELEASE_VERSION={version}"
-        ).replace(
-            fr"PRERELEASE_REF=[\da-z]+",
-            fr"PRERELEASE_REF={commit_sha[:9]}"
+            fr"py39-pre-anki[\d.a-z]+-qt6",
+            fr"py39-pre-anki{version}-qt6"
         )
 
         tests_yml.replace(
+            fr"py39-pre-anki[\d.a-z]+-qt6",
+            fr"py39-pre-anki{version}-qt6"
+        ).replace(
             fr"Pre-release \([\d.a-z]+\)",
             fr"Pre-release ({version})"
         )
@@ -81,8 +81,8 @@ def add_stable(tox_ini: File, tests_yml: File, version):
         log(f":: adding new stable test environment with Anki {version}")
 
         tox_ini.insert_before_line(
-            "py39-ankipre",
-            f"py39-anki{version}qt{{5,6}}"
+            "py39-pre-",
+            f"py39-anki{version}-qt{{5,6}}"
         )
 
         tests_yml.insert_before_line(
@@ -90,10 +90,10 @@ def add_stable(tox_ini: File, tests_yml: File, version):
             f"""
             - name: Anki {version} (Qt5)
               python: 3.9
-              environment: py39-anki{version}qt5
+              environment: py39-anki{version}-qt5
             - name: Anki {version} (Qt6)
               python: 3.9
-              environment: py39-anki{version}qt6
+              environment: py39-anki{version}-qt6
             """
         )
 
@@ -104,7 +104,7 @@ def add_stable(tox_ini: File, tests_yml: File, version):
 def upgrade():
     with editing("tox.ini") as tox_ini, editing(".github/workflows/tests.yml") as tests_yml:
         if sys.argv[1] == "update-prerelease":
-            update_prerelease(tox_ini, tests_yml, sys.argv[2], sys.argv[3])
+            update_prerelease(tox_ini, tests_yml, sys.argv[2])
         elif sys.argv[1] == "add-stable":
             add_stable(tox_ini, tests_yml, sys.argv[2])
         else:
